@@ -438,11 +438,16 @@ def health_check():
         # Test database connection
         conn = get_db_connection()
         conn.execute('SELECT 1')
+        
+        # Check database type
+        database_type = "PostgreSQL" if is_postgres() else "SQLite"
+        
         conn.close()
         
         return jsonify({
             'status': 'healthy',
             'database': 'connected',
+            'database_type': database_type,
             'timestamp': datetime.datetime.now().isoformat()
         }), 200
     except Exception as e:
