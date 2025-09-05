@@ -16,17 +16,17 @@ app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 # Database setup
 def get_database_url():
     """Get database URL from environment or use SQLite fallback"""
-    # Always use PostgreSQL on Railway
+    # Force PostgreSQL on Railway - check if PORT is set (Railway always sets this)
     railway_postgres = 'postgresql://postgres:ZDcFOVhNMCnLhFNKMGUimBFwddGaVnNC@ballast.proxy.rlwy.net:21042/railway'
     
-    # Check if we're running on Railway by looking for Railway environment variables
-    if any(key.startswith('RAILWAY_') for key in os.environ.keys()):
-        print(f"DEBUG: Railway detected, using PostgreSQL: {railway_postgres[:30]}...")
+    # Railway always sets PORT environment variable
+    if os.environ.get('PORT'):
+        print(f"DEBUG: PORT detected ({os.environ.get('PORT')}), using PostgreSQL: {railway_postgres[:30]}...")
         return railway_postgres
     else:
-        # Local development
+        # Local development (no PORT set)
         url = os.environ.get('DATABASE_URL', 'sqlite:///task_manager.db')
-        print(f"DEBUG: Local development, DATABASE_URL = {url[:20]}...")
+        print(f"DEBUG: No PORT, local development, DATABASE_URL = {url[:20]}...")
         return url
 
 def get_db_connection():
