@@ -16,7 +16,9 @@ app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 # Database setup
 def get_database_url():
     """Get database URL from environment or use SQLite fallback"""
-    return os.environ.get('DATABASE_URL', 'sqlite:///task_manager.db')
+    url = os.environ.get('DATABASE_URL', 'sqlite:///task_manager.db')
+    print(f"DEBUG: DATABASE_URL = {url[:20]}...")  # Log first 20 chars for debugging
+    return url
 
 def get_db_connection():
     """Get database connection - PostgreSQL on Railway, SQLite locally"""
