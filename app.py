@@ -16,18 +16,13 @@ app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 # Database setup
 def get_database_url():
     """Get database URL from environment or use SQLite fallback"""
-    # Check for Railway PostgreSQL connection
-    if 'RAILWAY_ENVIRONMENT' in os.environ:
-        # We're on Railway, try to find PostgreSQL URL
-        postgres_url = os.environ.get('DATABASE_URL')
-        if postgres_url and postgres_url.startswith('postgres'):
-            print(f"DEBUG: Using PostgreSQL on Railway: {postgres_url[:30]}...")
-            return postgres_url
-        else:
-            # Hardcoded fallback for Railway PostgreSQL
-            railway_postgres = 'postgresql://postgres:ZDcFOVhNMCnLhFNKMGUimBFwddGaVnNC@ballast.proxy.rlwy.net:21042/railway'
-            print(f"DEBUG: Railway detected, using hardcoded PostgreSQL: {railway_postgres[:30]}...")
-            return railway_postgres
+    # Always use PostgreSQL on Railway
+    railway_postgres = 'postgresql://postgres:ZDcFOVhNMCnLhFNKMGUimBFwddGaVnNC@ballast.proxy.rlwy.net:21042/railway'
+    
+    # Check if we're running on Railway by looking for Railway environment variables
+    if any(key.startswith('RAILWAY_') for key in os.environ.keys()):
+        print(f"DEBUG: Railway detected, using PostgreSQL: {railway_postgres[:30]}...")
+        return railway_postgres
     else:
         # Local development
         url = os.environ.get('DATABASE_URL', 'sqlite:///task_manager.db')
