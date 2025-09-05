@@ -6,77 +6,169 @@ import jwt
 import datetime
 import os
 from functools import wraps
+import psycopg2
+from urllib.parse import urlparse
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 
 # Database setup
-DATABASE = 'task_manager.db'
+def get_database_url():
+    """Get database URL from environment or use SQLite fallback"""
+    return os.environ.get('DATABASE_URL', 'sqlite:///task_manager.db')
+
+def get_db_connection():
+    """Get database connection - PostgreSQL on Railway, SQLite locally"""
+    database_url = get_database_url()
+    
+    if database_url.startswith('postgres://'):
+        # Parse PostgreSQL URL
+        parsed = urlparse(database_url)
+        conn = psycopg2.connect(
+            host=parsed.hostname,
+            port=parsed.port,
+            database=parsed.path[1:],  # Remove leading slash
+            user=parsed.username,
+            password=parsed.password
+        )
+        return conn
+    else:
+        # Fallback to SQLite for local development
+        conn = sqlite3.connect('task_manager.db')
+        conn.row_factory = sqlite3.Row
+        return conn
+
+def is_postgres():
+    """Check if we're using PostgreSQL"""
+    return get_database_url().startswith('postgres://')
 
 def init_db():
     """Initialize database with tables and sample data"""
-    conn = sqlite3.connect(DATABASE)
+    conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Create tables
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            name TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tracks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            description TEXT,
-            color TEXT DEFAULT '#3B82F6',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    ''')
-    
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS goals (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            track_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            description TEXT,
-            target_value INTEGER DEFAULT 1,
-            current_value INTEGER DEFAULT 0,
-            unit TEXT DEFAULT 'times',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (track_id) REFERENCES tracks (id)
-        )
-    ''')
-    
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            goal_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            description TEXT,
-            completed BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (goal_id) REFERENCES goals (id)
-        )
-    ''')
+    # Create tables (compatible with both PostgreSQL and SQLite)
+    if is_postgres():
+        # PostgreSQL syntax
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tracks (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                description TEXT,
+                color VARCHAR(7) DEFAULT '#3B82F6',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS goals (
+                id SERIAL PRIMARY KEY,
+                track_id INTEGER NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                target_value INTEGER DEFAULT 1,
+                current_value INTEGER DEFAULT 0,
+                unit VARCHAR(50) DEFAULT 'times',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (track_id) REFERENCES tracks (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tasks (
+                id SERIAL PRIMARY KEY,
+                goal_id INTEGER NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                completed BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (goal_id) REFERENCES goals (id)
+            )
+        ''')
+    else:
+        # SQLite syntax
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                name TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tracks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                color TEXT DEFAULT '#3B82F6',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS goals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                track_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                target_value INTEGER DEFAULT 1,
+                current_value INTEGER DEFAULT 0,
+                unit TEXT DEFAULT 'times',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (track_id) REFERENCES goals (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                goal_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                completed BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (goal_id) REFERENCES goals (id)
+            )
+        ''')
     
     # Check if Rob van Dijk exists
-    cursor.execute('SELECT id FROM users WHERE email = ?', ('rob.vandijk@example.com',))
+    if is_postgres():
+        cursor.execute('SELECT id FROM users WHERE email = %s', ('rob.vandijk@example.com',))
+    else:
+        cursor.execute('SELECT id FROM users WHERE email = ?', ('rob.vandijk@example.com',))
+    
     if not cursor.fetchone():
         # Create Rob van Dijk user
         password_hash = hashlib.sha256('password123'.encode()).hexdigest()
-        cursor.execute(
-            'INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)',
-            ('rob.vandijk@example.com', password_hash, 'Rob van Dijk')
-        )
+        
+        if is_postgres():
+            cursor.execute(
+                'INSERT INTO users (email, password_hash, name) VALUES (%s, %s, %s)',
+                ('rob.vandijk@example.com', password_hash, 'Rob van Dijk')
+            )
+        else:
+            cursor.execute(
+                'INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)',
+                ('rob.vandijk@example.com', password_hash, 'Rob van Dijk')
+            )
+        
         user_id = cursor.lastrowid
         
         # Create sample tracks, goals, and tasks
@@ -91,18 +183,30 @@ def init_db():
         ]
         
         for track_name, track_desc, track_color in tracks_data:
-            cursor.execute(
-                'INSERT INTO tracks (user_id, name, description, color) VALUES (?, ?, ?, ?)',
-                (user_id, track_name, track_desc, track_color)
-            )
+            if is_postgres():
+                cursor.execute(
+                    'INSERT INTO tracks (user_id, name, description, color) VALUES (%s, %s, %s, %s)',
+                    (user_id, track_name, track_desc, track_color)
+                )
+            else:
+                cursor.execute(
+                    'INSERT INTO tracks (user_id, name, description, color) VALUES (?, ?, ?, ?)',
+                    (user_id, track_name, track_desc, track_color)
+                )
             track_id = cursor.lastrowid
             
             # Add sample goals and tasks for each track
             if track_name == 'Morning Routine':
-                cursor.execute(
-                    'INSERT INTO goals (track_id, title, description, target_value, unit) VALUES (?, ?, ?, ?, ?)',
-                    (track_id, 'Wake up early', 'Consistent 6 AM wake-up time', 7, 'days per week')
-                )
+                if is_postgres():
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, title, description, target_value, unit) VALUES (%s, %s, %s, %s, %s)',
+                        (track_id, 'Wake up early', 'Consistent 6 AM wake-up time', 7, 'days per week')
+                    )
+                else:
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, title, description, target_value, unit) VALUES (?, ?, ?, ?, ?)',
+                        (track_id, 'Wake up early', 'Consistent 6 AM wake-up time', 7, 'days per week')
+                    )
                 goal_id = cursor.lastrowid
                 tasks = [
                     ('Set alarm for 6 AM', 'Use consistent alarm time'),
@@ -110,20 +214,20 @@ def init_db():
                     ('Drink water first thing', 'Hydrate upon waking')
                 ]
                 for task_title, task_desc in tasks:
-                    cursor.execute(
-                        'INSERT INTO tasks (goal_id, title, description) VALUES (?, ?, ?)',
-                        (goal_id, task_title, task_desc)
-                    )
+                    if is_postgres():
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, title, description) VALUES (%s, %s, %s)',
+                            (goal_id, task_title, task_desc)
+                        )
+                    else:
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, title, description) VALUES (?, ?, ?)',
+                            (goal_id, task_title, task_desc)
+                        )
     
     conn.commit()
     conn.close()
     print("Database initialized successfully")
-
-def get_db_connection():
-    """Get database connection"""
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 def token_required(f):
     """Decorator for routes that require authentication"""
@@ -156,9 +260,14 @@ def login():
         return jsonify({'error': 'Email and password required'}), 400
     
     conn = get_db_connection()
-    user = conn.execute(
-        'SELECT * FROM users WHERE email = ?', (email,)
-    ).fetchone()
+    if is_postgres():
+        user = conn.execute(
+            'SELECT * FROM users WHERE email = %s', (email,)
+        ).fetchone()
+    else:
+        user = conn.execute(
+            'SELECT * FROM users WHERE email = ?', (email,)
+        ).fetchone()
     conn.close()
     
     if not user:
@@ -189,10 +298,16 @@ def login():
 def get_tracks(current_user_id):
     """Get all tracks for the current user"""
     conn = get_db_connection()
-    tracks = conn.execute(
-        'SELECT * FROM tracks WHERE user_id = ? ORDER BY created_at',
-        (current_user_id,)
-    ).fetchall()
+    if is_postgres():
+        tracks = conn.execute(
+            'SELECT * FROM tracks WHERE user_id = %s ORDER BY created_at',
+            (current_user_id,)
+        ).fetchall()
+    else:
+        tracks = conn.execute(
+            'SELECT * FROM tracks WHERE user_id = ? ORDER BY created_at',
+            (current_user_id,)
+        ).fetchall()
     conn.close()
     
     return jsonify([dict(track) for track in tracks])
@@ -211,16 +326,27 @@ def create_track(current_user_id):
     
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        'INSERT INTO tracks (user_id, name, description, color) VALUES (?, ?, ?, ?)',
-        (current_user_id, name, description, color)
-    )
+    if is_postgres():
+        cursor.execute(
+            'INSERT INTO tracks (user_id, name, description, color) VALUES (%s, %s, %s, %s)',
+            (current_user_id, name, description, color)
+        )
+    else:
+        cursor.execute(
+            'INSERT INTO tracks (user_id, name, description, color) VALUES (?, ?, ?, ?)',
+            (current_user_id, name, description, color)
+        )
     track_id = cursor.lastrowid
     conn.commit()
     
-    track = conn.execute(
-        'SELECT * FROM tracks WHERE id = ?', (track_id,)
-    ).fetchone()
+    if is_postgres():
+        track = conn.execute(
+            'SELECT * FROM tracks WHERE id = %s', (track_id,)
+        ).fetchone()
+    else:
+        track = conn.execute(
+            'SELECT * FROM tracks WHERE id = ?', (track_id,)
+        ).fetchone()
     conn.close()
     
     return jsonify(dict(track)), 201
@@ -235,19 +361,31 @@ def get_goals(current_user_id):
     
     conn = get_db_connection()
     # Verify track belongs to user
-    track = conn.execute(
-        'SELECT * FROM tracks WHERE id = ? AND user_id = ?',
-        (track_id, current_user_id)
-    ).fetchone()
+    if is_postgres():
+        track = conn.execute(
+            'SELECT * FROM tracks WHERE id = %s AND user_id = %s',
+            (track_id, current_user_id)
+        ).fetchone()
+    else:
+        track = conn.execute(
+            'SELECT * FROM tracks WHERE id = ? AND user_id = ?',
+            (track_id, current_user_id)
+        ).fetchone()
     
     if not track:
         conn.close()
         return jsonify({'error': 'Track not found'}), 404
     
-    goals = conn.execute(
-        'SELECT * FROM goals WHERE track_id = ? ORDER BY created_at',
-        (track_id,)
-    ).fetchall()
+    if is_postgres():
+        goals = conn.execute(
+            'SELECT * FROM goals WHERE track_id = %s ORDER BY created_at',
+            (track_id,)
+        ).fetchall()
+    else:
+        goals = conn.execute(
+            'SELECT * FROM goals WHERE track_id = ? ORDER BY created_at',
+            (track_id,)
+        ).fetchall()
     conn.close()
     
     return jsonify([dict(goal) for goal in goals])
@@ -262,20 +400,33 @@ def get_tasks(current_user_id):
     
     conn = get_db_connection()
     # Verify goal belongs to user (through track)
-    goal = conn.execute('''
-        SELECT g.* FROM goals g
-        JOIN tracks t ON g.track_id = t.id
-        WHERE g.id = ? AND t.user_id = ?
-    ''', (goal_id, current_user_id)).fetchone()
+    if is_postgres():
+        goal = conn.execute('''
+            SELECT g.* FROM goals g
+            JOIN tracks t ON g.track_id = t.id
+            WHERE g.id = %s AND t.user_id = %s
+        ''', (goal_id, current_user_id)).fetchone()
+    else:
+        goal = conn.execute('''
+            SELECT g.* FROM goals g
+            JOIN tracks t ON g.track_id = t.id
+            WHERE g.id = ? AND t.user_id = ?
+        ''', (goal_id, current_user_id)).fetchone()
     
     if not goal:
         conn.close()
         return jsonify({'error': 'Goal not found'}), 404
     
-    tasks = conn.execute(
-        'SELECT * FROM tasks WHERE goal_id = ? ORDER BY created_at',
-        (goal_id,)
-    ).fetchall()
+    if is_postgres():
+        tasks = conn.execute(
+            'SELECT * FROM tasks WHERE goal_id = %s ORDER BY created_at',
+            (goal_id,)
+        ).fetchall()
+    else:
+        tasks = conn.execute(
+            'SELECT * FROM tasks WHERE goal_id = ? ORDER BY created_at',
+            (goal_id,)
+        ).fetchall()
     conn.close()
     
     return jsonify([dict(task) for task in tasks])
@@ -326,4 +477,3 @@ if __name__ == '__main__':
     
     # Run the app
     app.run(host='0.0.0.0', port=port, debug=False)
-
