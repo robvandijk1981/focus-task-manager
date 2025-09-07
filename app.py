@@ -567,6 +567,11 @@ def test_db():
         result4 = cursor.fetchone()
         cursor.close()
         
+        # Test 5: Get tracks for user ID 1
+        cursor = execute_query(conn, 'SELECT * FROM tracks WHERE user_id = 1 ORDER BY id')
+        result5 = cursor.fetchall()
+        cursor.close()
+        
         conn.close()
         
         return jsonify({
@@ -575,6 +580,7 @@ def test_db():
             'test2': list(result2) if result2 else None,
             'test3': list(result3) if result3 else None,
             'test4': list(result4) if result4 else None,
+            'test5': [list(track) for track in result5] if result5 else None,
             'database_type': "PostgreSQL" if is_postgres() else "SQLite"
         }), 200
     except Exception as e:
