@@ -436,33 +436,31 @@ def get_goals(current_user_id):
     conn = get_db_connection()
     # Verify track belongs to user
     if is_postgres():
-        track = conn.execute(
-            'SELECT * FROM tracks WHERE id = %s AND user_id = %s',
-            (track_id, current_user_id)
-        ).fetchone()
+        cursor = execute_query(conn, 'SELECT * FROM tracks WHERE id = %s AND user_id = %s', (track_id, current_user_id))
+        track = cursor.fetchone()
+        cursor.close()
     else:
-        track = conn.execute(
-            'SELECT * FROM tracks WHERE id = ? AND user_id = ?',
-            (track_id, current_user_id)
-        ).fetchone()
+        cursor = execute_query(conn, 'SELECT * FROM tracks WHERE id = ? AND user_id = ?', (track_id, current_user_id))
+        track = cursor.fetchone()
+        cursor.close()
     
     if not track:
         conn.close()
         return jsonify({'error': 'Track not found'}), 404
     
     if is_postgres():
-        goals = conn.execute(
-            'SELECT * FROM goals WHERE track_id = %s ORDER BY created_at',
-            (track_id,)
-        ).fetchall()
+        cursor = execute_query(conn, 'SELECT * FROM goals WHERE track_id = %s ORDER BY created_at', (track_id,))
+        goals = cursor.fetchall()
+        cursor.close()
     else:
-        goals = conn.execute(
-            'SELECT * FROM goals WHERE track_id = ? ORDER BY created_at',
-            (track_id,)
-        ).fetchall()
+        cursor = execute_query(conn, 'SELECT * FROM goals WHERE track_id = ? ORDER BY created_at', (track_id,))
+        goals = cursor.fetchall()
+        cursor.close()
     conn.close()
     
-    return jsonify([dict(goal) for goal in goals])
+    # Convert goals to dictionaries
+    goal_columns = ['id', 'track_id', 'title', 'description', 'target_value', 'current_value', 'unit', 'created_at']
+    return jsonify([convert_to_dict(goal, goal_columns) for goal in goals])
 
 @app.route('/api/tasks', methods=['GET'])
 @token_required
@@ -475,35 +473,39 @@ def get_tasks(current_user_id):
     conn = get_db_connection()
     # Verify goal belongs to user (through track)
     if is_postgres():
-        goal = conn.execute('''
+        cursor = execute_query(conn, '''
             SELECT g.* FROM goals g
             JOIN tracks t ON g.track_id = t.id
             WHERE g.id = %s AND t.user_id = %s
-        ''', (goal_id, current_user_id)).fetchone()
+        ''', (goal_id, current_user_id))
+        goal = cursor.fetchone()
+        cursor.close()
     else:
-        goal = conn.execute('''
+        cursor = execute_query(conn, '''
             SELECT g.* FROM goals g
             JOIN tracks t ON g.track_id = t.id
             WHERE g.id = ? AND t.user_id = ?
-        ''', (goal_id, current_user_id)).fetchone()
+        ''', (goal_id, current_user_id))
+        goal = cursor.fetchone()
+        cursor.close()
     
     if not goal:
         conn.close()
         return jsonify({'error': 'Goal not found'}), 404
     
     if is_postgres():
-        tasks = conn.execute(
-            'SELECT * FROM tasks WHERE goal_id = %s ORDER BY created_at',
-            (goal_id,)
-        ).fetchall()
+        cursor = execute_query(conn, 'SELECT * FROM tasks WHERE goal_id = %s ORDER BY created_at', (goal_id,))
+        tasks = cursor.fetchall()
+        cursor.close()
     else:
-        tasks = conn.execute(
-            'SELECT * FROM tasks WHERE goal_id = ? ORDER BY created_at',
-            (goal_id,)
-        ).fetchall()
+        cursor = execute_query(conn, 'SELECT * FROM tasks WHERE goal_id = ? ORDER BY created_at', (goal_id,))
+        tasks = cursor.fetchall()
+        cursor.close()
     conn.close()
     
-    return jsonify([dict(task) for task in tasks])
+    # Convert tasks to dictionaries
+    task_columns = ['id', 'goal_id', 'title', 'description', 'completed', 'created_at']
+    return jsonify([convert_to_dict(task, task_columns) for task in tasks])
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -563,7 +565,10 @@ def test_db():
         cursor.close()
         
         # Test 4: Get user data structure
-        cursor = execute_query(conn, 'SELECT * FROM users WHERE email = %s', ('rob.vandijk@example.com',))
+        if is_postgres():
+            cursor = execute_query(conn, 'SELECT * FROM users WHERE email = %s', ('rob.vandijk@example.com',))
+        else:
+            cursor = execute_query(conn, 'SELECT * FROM users WHERE email = ?', ('rob.vandijk@example.com',))
         result4 = cursor.fetchone()
         cursor.close()
         
