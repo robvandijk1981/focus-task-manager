@@ -68,6 +68,9 @@ def execute_query(conn, query, params=None):
     cursor = conn.cursor()
     try:
         if params:
+            # Convert SQLite ? parameters to PostgreSQL %s parameters if needed
+            if is_postgres() and '?' in query:
+                query = query.replace('?', '%s')
             cursor.execute(query, params)
         else:
             cursor.execute(query)
