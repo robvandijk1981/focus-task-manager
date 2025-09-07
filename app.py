@@ -53,7 +53,7 @@ def get_db_connection():
 
 def is_postgres():
     """Check if we're using PostgreSQL"""
-    return get_database_url().startswith('postgres://')
+    return get_database_url().startswith('postgresql://')
 
 def init_db():
     """Initialize database with tables and sample data"""
