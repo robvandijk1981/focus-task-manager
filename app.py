@@ -63,6 +63,19 @@ def is_postgres():
     """Check if we're using PostgreSQL"""
     return get_database_url().startswith('postgresql://')
 
+def execute_query(conn, query, params=None):
+    """Execute a query with proper cursor handling for both SQLite and PostgreSQL"""
+    cursor = conn.cursor()
+    try:
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        return cursor
+    except Exception as e:
+        cursor.close()
+        raise e
+
 def init_db():
     """Initialize database with tables and sample data"""
     conn = get_db_connection()
@@ -281,13 +294,13 @@ def login():
     
     conn = get_db_connection()
     if is_postgres():
-        user = conn.execute(
-            'SELECT * FROM users WHERE email = %s', (email,)
-        ).fetchone()
+        cursor = execute_query(conn, 'SELECT * FROM users WHERE email = %s', (email,))
+        user = cursor.fetchone()
+        cursor.close()
     else:
-        user = conn.execute(
-            'SELECT * FROM users WHERE email = ?', (email,)
-        ).fetchone()
+        cursor = execute_query(conn, 'SELECT * FROM users WHERE email = ?', (email,))
+        user = cursor.fetchone()
+        cursor.close()
     conn.close()
     
     if not user:
@@ -319,15 +332,13 @@ def get_tracks(current_user_id):
     """Get all tracks for the current user"""
     conn = get_db_connection()
     if is_postgres():
-        tracks = conn.execute(
-            'SELECT * FROM tracks WHERE user_id = %s ORDER BY created_at',
-            (current_user_id,)
-        ).fetchall()
+        cursor = execute_query(conn, 'SELECT * FROM tracks WHERE user_id = %s ORDER BY created_at', (current_user_id,))
+        tracks = cursor.fetchall()
+        cursor.close()
     else:
-        tracks = conn.execute(
-            'SELECT * FROM tracks WHERE user_id = ? ORDER BY created_at',
-            (current_user_id,)
-        ).fetchall()
+        cursor = execute_query(conn, 'SELECT * FROM tracks WHERE user_id = ? ORDER BY created_at', (current_user_id,))
+        tracks = cursor.fetchall()
+        cursor.close()
     conn.close()
     
     return jsonify([dict(track) for track in tracks])
