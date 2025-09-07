@@ -598,17 +598,17 @@ def test_db():
 # Frontend Routes
 @app.route('/')
 def serve_frontend():
-    """Serve the main React app"""
-    return send_from_directory(app.static_folder, 'index.html')
+    """Serve the main app"""
+    return send_from_directory(app.static_folder, 'index_new.html')
 
 @app.route('/<path:path>')
 def serve_static_files(path):
-    """Serve static files or fallback to React app for client-side routing"""
+    """Serve static files or fallback to main app for client-side routing"""
     if os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
     else:
-        # Fallback to React app for client-side routing
-        return send_from_directory(app.static_folder, 'index.html')
+        # Fallback to main app for client-side routing
+        return send_from_directory(app.static_folder, 'index_new.html')
 
 if __name__ == '__main__':
     # Initialize database on startup
