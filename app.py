@@ -313,7 +313,7 @@ def login():
     
     # Handle both PostgreSQL tuples and SQLite Row objects for password check
     if is_postgres():
-        user_password_hash = user[3]  # Assuming password_hash is the 4th column
+        user_password_hash = user[2]  # password_hash is the 3rd column (index 2)
     else:
         user_password_hash = user['password_hash']
     
@@ -338,9 +338,9 @@ def login():
     # Handle both PostgreSQL tuples and SQLite Row objects
     if is_postgres():
         user_dict = {
-            'id': user[0],
-            'email': user[1], 
-            'name': user[2]
+            'id': user[0],      # id
+            'email': user[1],   # email
+            'name': user[3]     # name (column 3, not 2)
         }
     else:
         user_dict = {
