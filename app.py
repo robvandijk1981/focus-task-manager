@@ -457,7 +457,9 @@ def health_check():
     try:
         # Test database connection
         conn = get_db_connection()
-        conn.execute('SELECT 1')
+        cursor = conn.cursor()
+        cursor.execute('SELECT 1')
+        cursor.fetchone()  # Consume the result
         
         # Check database type
         database_type = "PostgreSQL" if is_postgres() else "SQLite"
@@ -466,6 +468,7 @@ def health_check():
         db_url = get_database_url()
         db_url_short = db_url[:30] + "..." if len(db_url) > 30 else db_url
         
+        cursor.close()
         conn.close()
         
         return jsonify({
