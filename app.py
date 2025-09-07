@@ -419,7 +419,9 @@ def create_track(current_user_id):
         cursor.close()
     conn.close()
     
-    return jsonify(dict(track)), 201
+    # Convert track to dictionary
+    track_columns = ['id', 'user_id', 'name', 'description', 'color', 'created_at']
+    return jsonify(convert_to_dict(track, track_columns)), 201
 
 @app.route('/api/goals', methods=['GET'])
 @token_required
