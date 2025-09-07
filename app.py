@@ -395,19 +395,20 @@ def create_track(current_user_id):
         return jsonify({'error': 'Track name is required'}), 400
     
     conn = get_db_connection()
-    cursor = conn.cursor()
     if is_postgres():
-        cursor.execute(
+        cursor = execute_query(conn, 
             'INSERT INTO tracks (user_id, name, description, color) VALUES (%s, %s, %s, %s) RETURNING id',
             (current_user_id, name, description, color)
         )
         track_id = cursor.fetchone()[0]
+        cursor.close()
     else:
-        cursor.execute(
+        cursor = execute_query(conn,
             'INSERT INTO tracks (user_id, name, description, color) VALUES (?, ?, ?, ?)',
             (current_user_id, name, description, color)
         )
         track_id = cursor.lastrowid
+        cursor.close()
     conn.commit()
     
     if is_postgres():
