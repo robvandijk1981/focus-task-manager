@@ -454,12 +454,18 @@ def health_check():
         # Check database type
         database_type = "PostgreSQL" if is_postgres() else "SQLite"
         
+        # Get the actual database URL being used
+        db_url = get_database_url()
+        db_url_short = db_url[:30] + "..." if len(db_url) > 30 else db_url
+        
         conn.close()
         
         return jsonify({
             'status': 'healthy',
             'database': 'connected',
             'database_type': database_type,
+            'database_url': db_url_short,
+            'port_env': os.environ.get('PORT', 'not_set'),
             'timestamp': datetime.datetime.now().isoformat()
         }), 200
     except Exception as e:
