@@ -15,18 +15,36 @@ app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 
 # Database setup
 def get_database_url():
-    """Get database URL from environment or use SQLite fallback"""
-    # Force PostgreSQL on Railway - check if PORT is set (Railway always sets this)
+    """Get database URL - try PostgreSQL first, fallback to SQLite"""
+    # Check for explicit PostgreSQL override
+    if os.environ.get('FORCE_POSTGRES') == 'true':
+        railway_postgres = 'postgresql://postgres:ZDcFOVhNMCnLhFNKMGUimBFwddGaVnNC@ballast.proxy.rlwy.net:21042/railway'
+        print(f"DEBUG: FORCE_POSTGRES=true, using: {railway_postgres[:30]}...")
+        return railway_postgres
+    
+    # Always try PostgreSQL first (for Railway)
     railway_postgres = 'postgresql://postgres:ZDcFOVhNMCnLhFNKMGUimBFwddGaVnNC@ballast.proxy.rlwy.net:21042/railway'
     
-    # Railway always sets PORT environment variable
-    if os.environ.get('PORT'):
-        print(f"DEBUG: PORT detected ({os.environ.get('PORT')}), using PostgreSQL: {railway_postgres[:30]}...")
+    # Check if we can connect to PostgreSQL
+    try:
+        import psycopg2
+        from urllib.parse import urlparse
+        parsed = urlparse(railway_postgres)
+        test_conn = psycopg2.connect(
+            host=parsed.hostname,
+            port=parsed.port,
+            database=parsed.path[1:],
+            user=parsed.username,
+            password=parsed.password,
+            connect_timeout=5  # Quick timeout for testing
+        )
+        test_conn.close()
+        print(f"DEBUG: PostgreSQL connection successful, using: {railway_postgres[:30]}...")
         return railway_postgres
-    else:
-        # Local development (no PORT set)
+    except Exception as e:
+        print(f"DEBUG: PostgreSQL connection failed ({e}), using SQLite")
+        # Fallback to SQLite
         url = os.environ.get('DATABASE_URL', 'sqlite:///task_manager.db')
-        print(f"DEBUG: No PORT, local development, DATABASE_URL = {url[:20]}...")
         return url
 
 def get_db_connection():
