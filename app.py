@@ -526,9 +526,9 @@ def test_db():
         
         return jsonify({
             'status': 'success',
-            'test1': dict(result1) if result1 else None,
-            'test2': dict(result2) if result2 else None,
-            'test3': dict(result3) if result3 else None,
+            'test1': list(result1) if result1 else None,
+            'test2': list(result2) if result2 else None,
+            'test3': list(result3) if result3 else None,
             'database_type': "PostgreSQL" if is_postgres() else "SQLite"
         }), 200
     except Exception as e:
