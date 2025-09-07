@@ -398,15 +398,16 @@ def create_track(current_user_id):
     cursor = conn.cursor()
     if is_postgres():
         cursor.execute(
-            'INSERT INTO tracks (user_id, name, description, color) VALUES (%s, %s, %s, %s)',
+            'INSERT INTO tracks (user_id, name, description, color) VALUES (%s, %s, %s, %s) RETURNING id',
             (current_user_id, name, description, color)
         )
+        track_id = cursor.fetchone()[0]
     else:
         cursor.execute(
             'INSERT INTO tracks (user_id, name, description, color) VALUES (?, ?, ?, ?)',
             (current_user_id, name, description, color)
         )
-    track_id = cursor.lastrowid
+        track_id = cursor.lastrowid
     conn.commit()
     
     if is_postgres():
