@@ -547,6 +547,11 @@ def test_db():
         result3 = cursor.fetchone()
         cursor.close()
         
+        # Test 4: Get user data structure
+        cursor = execute_query(conn, 'SELECT * FROM users WHERE email = %s', ('rob.vandijk@example.com',))
+        result4 = cursor.fetchone()
+        cursor.close()
+        
         conn.close()
         
         return jsonify({
@@ -554,6 +559,7 @@ def test_db():
             'test1': list(result1) if result1 else None,
             'test2': list(result2) if result2 else None,
             'test3': list(result3) if result3 else None,
+            'test4': list(result4) if result4 else None,
             'database_type': "PostgreSQL" if is_postgres() else "SQLite"
         }), 200
     except Exception as e:
