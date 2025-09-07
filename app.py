@@ -34,17 +34,25 @@ def get_db_connection():
     """Get database connection - PostgreSQL on Railway, SQLite locally"""
     database_url = get_database_url()
     
-    if database_url.startswith('postgres://'):
-        # Parse PostgreSQL URL
-        parsed = urlparse(database_url)
-        conn = psycopg2.connect(
-            host=parsed.hostname,
-            port=parsed.port,
-            database=parsed.path[1:],  # Remove leading slash
-            user=parsed.username,
-            password=parsed.password
-        )
-        return conn
+    if database_url.startswith('postgresql://'):
+        try:
+            # Parse PostgreSQL URL
+            parsed = urlparse(database_url)
+            conn = psycopg2.connect(
+                host=parsed.hostname,
+                port=parsed.port,
+                database=parsed.path[1:],  # Remove leading slash
+                user=parsed.username,
+                password=parsed.password
+            )
+            return conn
+        except Exception as e:
+            print(f"ERROR: PostgreSQL connection failed: {e}")
+            print("Falling back to SQLite...")
+            # Fallback to SQLite if PostgreSQL fails
+            conn = sqlite3.connect('task_manager.db')
+            conn.row_factory = sqlite3.Row
+            return conn
     else:
         # Fallback to SQLite for local development
         conn = sqlite3.connect('task_manager.db')
