@@ -374,13 +374,13 @@ def create_track(current_user_id):
     conn.commit()
     
     if is_postgres():
-        track = conn.execute(
-            'SELECT * FROM tracks WHERE id = %s', (track_id,)
-        ).fetchone()
+        cursor = execute_query(conn, 'SELECT * FROM tracks WHERE id = %s', (track_id,))
+        track = cursor.fetchone()
+        cursor.close()
     else:
-        track = conn.execute(
-            'SELECT * FROM tracks WHERE id = ?', (track_id,)
-        ).fetchone()
+        cursor = execute_query(conn, 'SELECT * FROM tracks WHERE id = ?', (track_id,))
+        track = cursor.fetchone()
+        cursor.close()
     conn.close()
     
     return jsonify(dict(track)), 201
@@ -499,6 +499,43 @@ def health_check():
             'database': 'disconnected',
             'error': str(e),
             'timestamp': datetime.datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/test-db', methods=['GET'])
+def test_db():
+    """Test database endpoint to debug cursor issues"""
+    try:
+        conn = get_db_connection()
+        
+        # Test 1: Simple query
+        cursor = execute_query(conn, 'SELECT 1 as test')
+        result1 = cursor.fetchone()
+        cursor.close()
+        
+        # Test 2: Query with parameters
+        cursor = execute_query(conn, 'SELECT COUNT(*) as user_count FROM users')
+        result2 = cursor.fetchone()
+        cursor.close()
+        
+        # Test 3: Query with WHERE clause
+        cursor = execute_query(conn, 'SELECT email FROM users LIMIT 1')
+        result3 = cursor.fetchone()
+        cursor.close()
+        
+        conn.close()
+        
+        return jsonify({
+            'status': 'success',
+            'test1': dict(result1) if result1 else None,
+            'test2': dict(result2) if result2 else None,
+            'test3': dict(result3) if result3 else None,
+            'database_type': "PostgreSQL" if is_postgres() else "SQLite"
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'database_type': "PostgreSQL" if is_postgres() else "SQLite"
         }), 500
 
 # Frontend Routes
