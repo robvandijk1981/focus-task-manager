@@ -79,6 +79,15 @@ def execute_query(conn, query, params=None):
         cursor.close()
         raise e
 
+def convert_to_dict(row, columns):
+    """Convert database row to dictionary for both PostgreSQL and SQLite"""
+    if is_postgres():
+        # PostgreSQL returns tuples, convert to dict using column names
+        return dict(zip(columns, row))
+    else:
+        # SQLite returns Row objects, convert to dict
+        return dict(row)
+
 def init_db():
     """Initialize database with tables and sample data"""
     conn = get_db_connection()
@@ -369,7 +378,9 @@ def get_tracks(current_user_id):
         cursor.close()
     conn.close()
     
-    return jsonify([dict(track) for track in tracks])
+    # Convert tracks to dictionaries
+    track_columns = ['id', 'user_id', 'name', 'description', 'color', 'created_at']
+    return jsonify([convert_to_dict(track, track_columns) for track in tracks])
 
 @app.route('/api/tracks', methods=['POST'])
 @token_required
