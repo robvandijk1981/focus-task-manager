@@ -15,37 +15,20 @@ app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 
 # Database setup
 def get_database_url():
-    """Get database URL - try PostgreSQL first, fallback to SQLite"""
-    # Check for explicit PostgreSQL override
-    if os.environ.get('FORCE_POSTGRES') == 'true':
-        railway_postgres = 'postgresql://postgres:ZDcFOVhNMCnLhFNKMGUimBFwddGaVnNC@ballast.proxy.rlwy.net:21042/railway'
-        print(f"DEBUG: FORCE_POSTGRES=true, using: {railway_postgres[:30]}...")
-        return railway_postgres
-    
-    # Always try PostgreSQL first (for Railway)
+    """Get database URL - ALWAYS use PostgreSQL on Railway"""
+    # ALWAYS use PostgreSQL on Railway (no fallback to SQLite)
     railway_postgres = 'postgresql://postgres:ZDcFOVhNMCnLhFNKMGUimBFwddGaVnNC@ballast.proxy.rlwy.net:21042/railway'
     
-    # Check if we can connect to PostgreSQL
-    try:
-        import psycopg2
-        from urllib.parse import urlparse
-        parsed = urlparse(railway_postgres)
-        test_conn = psycopg2.connect(
-            host=parsed.hostname,
-            port=parsed.port,
-            database=parsed.path[1:],
-            user=parsed.username,
-            password=parsed.password,
-            connect_timeout=5  # Quick timeout for testing
-        )
-        test_conn.close()
-        print(f"DEBUG: PostgreSQL connection successful, using: {railway_postgres[:30]}...")
-        return railway_postgres
-    except Exception as e:
-        print(f"DEBUG: PostgreSQL connection failed ({e}), using SQLite")
-        # Fallback to SQLite
+    # Check if we're running locally (no PORT environment variable)
+    if not os.environ.get('PORT'):
+        # Local development - use SQLite
         url = os.environ.get('DATABASE_URL', 'sqlite:///task_manager.db')
+        print(f"DEBUG: Local development, using SQLite: {url[:20]}...")
         return url
+    else:
+        # Railway deployment - ALWAYS use PostgreSQL
+        print(f"DEBUG: Railway deployment (PORT={os.environ.get('PORT')}), using PostgreSQL: {railway_postgres[:30]}...")
+        return railway_postgres
 
 def get_db_connection():
     """Get database connection - PostgreSQL on Railway, SQLite locally"""
