@@ -310,23 +310,48 @@ def login():
         return jsonify({'error': 'Invalid email or password'}), 401
     
     password_hash = hashlib.sha256(password.encode()).hexdigest()
-    if user['password_hash'] != password_hash:
+    
+    # Handle both PostgreSQL tuples and SQLite Row objects for password check
+    if is_postgres():
+        user_password_hash = user[3]  # Assuming password_hash is the 4th column
+    else:
+        user_password_hash = user['password_hash']
+    
+    if user_password_hash != password_hash:
         return jsonify({'error': 'Invalid email or password'}), 401
+    
+    # Handle both PostgreSQL tuples and SQLite Row objects for JWT
+    if is_postgres():
+        user_id = user[0]
+        user_email = user[1]
+    else:
+        user_id = user['id']
+        user_email = user['email']
     
     # Generate JWT token
     token = jwt.encode({
-        'user_id': user['id'],
-        'email': user['email'],
+        'user_id': user_id,
+        'email': user_email,
         'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=7)
     }, app.config['SECRET_KEY'], algorithm='HS256')
     
-    return jsonify({
-        'token': token,
-        'user': {
+    # Handle both PostgreSQL tuples and SQLite Row objects
+    if is_postgres():
+        user_dict = {
+            'id': user[0],
+            'email': user[1], 
+            'name': user[2]
+        }
+    else:
+        user_dict = {
             'id': user['id'],
             'email': user['email'],
             'name': user['name']
         }
+    
+    return jsonify({
+        'token': token,
+        'user': user_dict
     })
 
 @app.route('/api/tracks', methods=['GET'])
