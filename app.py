@@ -114,13 +114,15 @@ def init_db():
             CREATE TABLE IF NOT EXISTS goals (
                 id SERIAL PRIMARY KEY,
                 track_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
                 title VARCHAR(255) NOT NULL,
                 description TEXT,
                 target_value INTEGER DEFAULT 1,
                 current_value INTEGER DEFAULT 0,
                 unit VARCHAR(50) DEFAULT 'times',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (track_id) REFERENCES tracks (id)
+                FOREIGN KEY (track_id) REFERENCES tracks (id),
+                FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
         
@@ -128,11 +130,13 @@ def init_db():
             CREATE TABLE IF NOT EXISTS tasks (
                 id SERIAL PRIMARY KEY,
                 goal_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
                 title VARCHAR(255) NOT NULL,
                 description TEXT,
                 completed BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (goal_id) REFERENCES goals (id)
+                FOREIGN KEY (goal_id) REFERENCES goals (id),
+                FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
     else:
@@ -163,13 +167,15 @@ def init_db():
             CREATE TABLE IF NOT EXISTS goals (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 track_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
                 title TEXT NOT NULL,
                 description TEXT,
                 target_value INTEGER DEFAULT 1,
                 current_value INTEGER DEFAULT 0,
                 unit TEXT DEFAULT 'times',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (track_id) REFERENCES goals (id)
+                FOREIGN KEY (track_id) REFERENCES tracks (id),
+                FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
         
@@ -177,11 +183,13 @@ def init_db():
             CREATE TABLE IF NOT EXISTS tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 goal_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
                 title TEXT NOT NULL,
                 description TEXT,
                 completed BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (goal_id) REFERENCES goals (id)
+                FOREIGN KEY (goal_id) REFERENCES goals (id),
+                FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
     
@@ -236,13 +244,13 @@ def init_db():
             if track_name == 'Morning Routine':
                 if is_postgres():
                     cursor.execute(
-                        'INSERT INTO goals (track_id, title, description, target_value, unit) VALUES (%s, %s, %s, %s, %s)',
-                        (track_id, 'Wake up early', 'Consistent 6 AM wake-up time', 7, 'days per week')
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (%s, %s, %s, %s, %s, %s)',
+                        (track_id, user_id, 'Wake up early', 'Consistent 6 AM wake-up time', 7, 'days per week')
                     )
                 else:
                     cursor.execute(
-                        'INSERT INTO goals (track_id, title, description, target_value, unit) VALUES (?, ?, ?, ?, ?)',
-                        (track_id, 'Wake up early', 'Consistent 6 AM wake-up time', 7, 'days per week')
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (?, ?, ?, ?, ?, ?)',
+                        (track_id, user_id, 'Wake up early', 'Consistent 6 AM wake-up time', 7, 'days per week')
                     )
                 goal_id = cursor.lastrowid
                 tasks = [
@@ -253,13 +261,187 @@ def init_db():
                 for task_title, task_desc in tasks:
                     if is_postgres():
                         cursor.execute(
-                            'INSERT INTO tasks (goal_id, title, description) VALUES (%s, %s, %s)',
-                            (goal_id, task_title, task_desc)
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (%s, %s, %s, %s)',
+                            (goal_id, user_id, task_title, task_desc)
                         )
                     else:
                         cursor.execute(
-                            'INSERT INTO tasks (goal_id, title, description) VALUES (?, ?, ?)',
-                            (goal_id, task_title, task_desc)
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (?, ?, ?, ?)',
+                            (goal_id, user_id, task_title, task_desc)
+                        )
+            
+            elif track_name == 'Exercise & Health':
+                if is_postgres():
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (%s, %s, %s, %s, %s, %s)',
+                        (track_id, user_id, 'Exercise 3 times per week', 'Regular physical activity', 3, 'times per week')
+                    )
+                else:
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (?, ?, ?, ?, ?, ?)',
+                        (track_id, user_id, 'Exercise 3 times per week', 'Regular physical activity', 3, 'times per week')
+                    )
+                goal_id = cursor.lastrowid
+                tasks = [
+                    ('Plan workout schedule', 'Schedule 3 workout sessions'),
+                    ('Prepare gym bag', 'Pack clothes and water bottle'),
+                    ('Track progress', 'Log workouts and improvements')
+                ]
+                for task_title, task_desc in tasks:
+                    if is_postgres():
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (%s, %s, %s, %s)',
+                            (goal_id, user_id, task_title, task_desc)
+                        )
+                    else:
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (?, ?, ?, ?)',
+                            (goal_id, user_id, task_title, task_desc)
+                        )
+            
+            elif track_name == 'Work Productivity':
+                if is_postgres():
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (%s, %s, %s, %s, %s, %s)',
+                        (track_id, user_id, 'Complete daily tasks', 'Finish all planned work items', 5, 'tasks per day')
+                    )
+                else:
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (?, ?, ?, ?, ?, ?)',
+                        (track_id, user_id, 'Complete daily tasks', 'Finish all planned work items', 5, 'tasks per day')
+                    )
+                goal_id = cursor.lastrowid
+                tasks = [
+                    ('Review daily priorities', 'Check task list and plan day'),
+                    ('Focus on high-impact work', 'Tackle most important tasks first'),
+                    ('Update project status', 'Keep stakeholders informed')
+                ]
+                for task_title, task_desc in tasks:
+                    if is_postgres():
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (%s, %s, %s, %s)',
+                            (goal_id, user_id, task_title, task_desc)
+                        )
+                    else:
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (?, ?, ?, ?)',
+                            (goal_id, user_id, task_title, task_desc)
+                        )
+            
+            elif track_name == 'Learning & Growth':
+                if is_postgres():
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (%s, %s, %s, %s, %s, %s)',
+                        (track_id, user_id, 'Read for 30 minutes daily', 'Continuous learning habit', 30, 'minutes per day')
+                    )
+                else:
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (?, ?, ?, ?, ?, ?)',
+                        (track_id, user_id, 'Read for 30 minutes daily', 'Continuous learning habit', 30, 'minutes per day')
+                    )
+                goal_id = cursor.lastrowid
+                tasks = [
+                    ('Choose reading material', 'Select book or article to read'),
+                    ('Set reading timer', 'Use 30-minute timer for focused reading'),
+                    ('Take notes', 'Write down key insights and ideas')
+                ]
+                for task_title, task_desc in tasks:
+                    if is_postgres():
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (%s, %s, %s, %s)',
+                            (goal_id, user_id, task_title, task_desc)
+                        )
+                    else:
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (?, ?, ?, ?)',
+                            (goal_id, user_id, task_title, task_desc)
+                        )
+            
+            elif track_name == 'Social Connections':
+                if is_postgres():
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (%s, %s, %s, %s, %s, %s)',
+                        (track_id, user_id, 'Connect with friends weekly', 'Maintain meaningful relationships', 2, 'connections per week')
+                    )
+                else:
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (?, ?, ?, ?, ?, ?)',
+                        (track_id, user_id, 'Connect with friends weekly', 'Maintain meaningful relationships', 2, 'connections per week')
+                    )
+                goal_id = cursor.lastrowid
+                tasks = [
+                    ('Reach out to a friend', 'Send message or make a call'),
+                    ('Plan social activity', 'Organize meetup or event'),
+                    ('Follow up on conversations', 'Check in on previous discussions')
+                ]
+                for task_title, task_desc in tasks:
+                    if is_postgres():
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (%s, %s, %s, %s)',
+                            (goal_id, user_id, task_title, task_desc)
+                        )
+                    else:
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (?, ?, ?, ?)',
+                            (goal_id, user_id, task_title, task_desc)
+                        )
+            
+            elif track_name == 'Creative Projects':
+                if is_postgres():
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (%s, %s, %s, %s, %s, %s)',
+                        (track_id, user_id, 'Work on creative project', 'Dedicate time to artistic pursuits', 2, 'hours per week')
+                    )
+                else:
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (?, ?, ?, ?, ?, ?)',
+                        (track_id, user_id, 'Work on creative project', 'Dedicate time to artistic pursuits', 2, 'hours per week')
+                    )
+                goal_id = cursor.lastrowid
+                tasks = [
+                    ('Set up creative workspace', 'Organize materials and tools'),
+                    ('Start new project', 'Begin creative work session'),
+                    ('Document progress', 'Take photos or notes of work')
+                ]
+                for task_title, task_desc in tasks:
+                    if is_postgres():
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (%s, %s, %s, %s)',
+                            (goal_id, user_id, task_title, task_desc)
+                        )
+                    else:
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (?, ?, ?, ?)',
+                            (goal_id, user_id, task_title, task_desc)
+                        )
+            
+            elif track_name == 'Evening Wind-down':
+                if is_postgres():
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (%s, %s, %s, %s, %s, %s)',
+                        (track_id, user_id, 'Prepare for next day', 'Evening routine for better tomorrow', 1, 'time per day')
+                    )
+                else:
+                    cursor.execute(
+                        'INSERT INTO goals (track_id, user_id, title, description, target_value, unit) VALUES (?, ?, ?, ?, ?, ?)',
+                        (track_id, user_id, 'Prepare for next day', 'Evening routine for better tomorrow', 1, 'time per day')
+                    )
+                goal_id = cursor.lastrowid
+                tasks = [
+                    ('Review tomorrow\'s schedule', 'Check calendar and plan day'),
+                    ('Prepare clothes and items', 'Set out what you need for tomorrow'),
+                    ('Reflect on the day', 'Think about accomplishments and lessons')
+                ]
+                for task_title, task_desc in tasks:
+                    if is_postgres():
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (%s, %s, %s, %s)',
+                            (goal_id, user_id, task_title, task_desc)
+                        )
+                    else:
+                        cursor.execute(
+                            'INSERT INTO tasks (goal_id, user_id, title, description) VALUES (?, ?, ?, ?)',
+                            (goal_id, user_id, task_title, task_desc)
                         )
     
     conn.commit()
@@ -674,11 +856,14 @@ def get_tasks(current_user_id):
 def create_goal(current_user_id):
     """Create a new goal"""
     data = request.get_json()
-    name = data.get('name')
+    title = data.get('title')
     track_id = data.get('track_id')
+    description = data.get('description', '')
+    target_value = data.get('target_value', 1)
+    unit = data.get('unit', 'times')
     
-    if not name or not track_id:
-        return jsonify({'error': 'Name and track_id are required'}), 400
+    if not title or not track_id:
+        return jsonify({'error': 'Title and track_id are required'}), 400
     
     conn = get_db_connection()
     if conn is None:
@@ -687,15 +872,15 @@ def create_goal(current_user_id):
     try:
         if is_postgres():
             cursor = execute_query(conn, 
-                'INSERT INTO goals (name, track_id, user_id) VALUES (%s, %s, %s) RETURNING id',
-                (name, track_id, current_user_id)
+                'INSERT INTO goals (title, description, track_id, user_id, target_value, unit) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id',
+                (title, description, track_id, current_user_id, target_value, unit)
             )
             goal_id = cursor.fetchone()[0]
             cursor.close()
         else:
             cursor = execute_query(conn, 
-                'INSERT INTO goals (name, track_id, user_id) VALUES (?, ?, ?)',
-                (name, track_id, current_user_id)
+                'INSERT INTO goals (title, description, track_id, user_id, target_value, unit) VALUES (?, ?, ?, ?, ?, ?)',
+                (title, description, track_id, current_user_id, target_value, unit)
             )
             goal_id = cursor.lastrowid
             cursor.close()
@@ -706,8 +891,12 @@ def create_goal(current_user_id):
         return jsonify({
             'goal': {
                 'id': goal_id,
-                'name': name,
+                'title': title,
+                'description': description,
                 'track_id': track_id,
+                'target_value': target_value,
+                'current_value': 0,
+                'unit': unit,
                 'tasks': []
             }
         }), 201
@@ -721,12 +910,12 @@ def create_goal(current_user_id):
 def create_task(current_user_id):
     """Create a new task"""
     data = request.get_json()
-    text = data.get('text')
+    title = data.get('title')
     goal_id = data.get('goal_id')
-    priority = data.get('priority', 'medium')
+    description = data.get('description', '')
     
-    if not text or not goal_id:
-        return jsonify({'error': 'Text and goal_id are required'}), 400
+    if not title or not goal_id:
+        return jsonify({'error': 'Title and goal_id are required'}), 400
     
     conn = get_db_connection()
     if conn is None:
@@ -735,15 +924,15 @@ def create_task(current_user_id):
     try:
         if is_postgres():
             cursor = execute_query(conn, 
-                'INSERT INTO tasks (title, description, goal_id, user_id, priority) VALUES (%s, %s, %s, %s, %s) RETURNING id',
-                (text, '', goal_id, current_user_id, priority)
+                'INSERT INTO tasks (title, description, goal_id, user_id) VALUES (%s, %s, %s, %s) RETURNING id',
+                (title, description, goal_id, current_user_id)
             )
             task_id = cursor.fetchone()[0]
             cursor.close()
         else:
             cursor = execute_query(conn, 
-                'INSERT INTO tasks (title, description, goal_id, user_id, priority) VALUES (?, ?, ?, ?, ?)',
-                (text, '', goal_id, current_user_id, priority)
+                'INSERT INTO tasks (title, description, goal_id, user_id) VALUES (?, ?, ?, ?)',
+                (title, description, goal_id, current_user_id)
             )
             task_id = cursor.lastrowid
             cursor.close()
@@ -754,9 +943,9 @@ def create_task(current_user_id):
         return jsonify({
             'task': {
                 'id': task_id,
-                'text': text,
+                'title': title,
+                'description': description,
                 'goal_id': goal_id,
-                'priority': priority,
                 'completed': False
             }
         }), 201
