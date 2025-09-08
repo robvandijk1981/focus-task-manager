@@ -13,55 +13,28 @@ app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 
-# Database setup
-def get_database_url():
-    """Get database URL - ALWAYS use PostgreSQL on Railway"""
-    # ALWAYS use PostgreSQL on Railway (no fallback to SQLite)
-    railway_postgres = 'postgresql://postgres:ZDcFOVhNMCnLhFNKMGUimBFwddGaVnNC@ballast.proxy.rlwy.net:21042/railway'
-    
-    # Check if we're running locally (no PORT environment variable)
-    if not os.environ.get('PORT'):
-        # Local development - use SQLite
-        url = os.environ.get('DATABASE_URL', 'sqlite:///task_manager.db')
-        print(f"DEBUG: Local development, using SQLite: {url[:20]}...")
-        return url
-    else:
-        # Railway deployment - ALWAYS use PostgreSQL
-        print(f"DEBUG: Railway deployment (PORT={os.environ.get('PORT')}), using PostgreSQL: {railway_postgres[:30]}...")
-        return railway_postgres
+DATABASE = os.environ.get('DATABASE_URL', 'task_manager.db')
 
 def get_db_connection():
-    """Get database connection - PostgreSQL on Railway, SQLite locally"""
-    database_url = get_database_url()
-    
-    if database_url.startswith('postgresql://'):
-        try:
-            # Parse PostgreSQL URL
-            parsed = urlparse(database_url)
-            conn = psycopg2.connect(
-                host=parsed.hostname,
-                port=parsed.port,
-                database=parsed.path[1:],  # Remove leading slash
-                user=parsed.username,
-                password=parsed.password
-            )
-            return conn
-        except Exception as e:
-            print(f"ERROR: PostgreSQL connection failed: {e}")
-            print("Falling back to SQLite...")
-            # Fallback to SQLite if PostgreSQL fails
-            conn = sqlite3.connect('task_manager.db')
-            conn.row_factory = sqlite3.Row
-            return conn
+    """Get database connection"""
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url and database_url.startswith('postgresql://'):
+        # Production PostgreSQL database
+        import psycopg2
+        import psycopg2.extras
+        conn = psycopg2.connect(database_url)
+        conn.autocommit = True
+        return conn
     else:
-        # Fallback to SQLite for local development
-        conn = sqlite3.connect('task_manager.db')
+        # Local SQLite database
+        conn = sqlite3.connect(DATABASE)
         conn.row_factory = sqlite3.Row
         return conn
 
 def is_postgres():
     """Check if we're using PostgreSQL"""
-    return get_database_url().startswith('postgresql://')
+    database_url = os.environ.get('DATABASE_URL')
+    return database_url and database_url.startswith('postgresql://')
 
 def execute_query(conn, query, params=None):
     """Execute a query with proper cursor handling for both SQLite and PostgreSQL"""
@@ -695,10 +668,6 @@ def health_check():
             'timestamp': datetime.datetime.now().isoformat()
         }), 500
 
-@app.route('/health', methods=['GET'])
-def simple_health_check():
-    """Simple health check endpoint for Railway"""
-    return jsonify({'status': 'ok', 'message': 'App is running'}), 200
 
 @app.route('/api/test-db', methods=['GET'])
 def test_db():
