@@ -1,0 +1,15 @@
+[phases.setup]
+nixPkgs = ["python39", "nodejs_18", "pnpm-9_x"]
+
+[phases.install]
+cmds = [
+    "npm install -g corepack@0.24.1 && corepack enable",
+    "pnpm i --frozen-lockfile",
+    "pip3 install -r requirements.txt"
+]
+
+[phases.build]
+cmds = ["pnpm run build"]
+
+[start]
+cmd = "python3 app.py"
