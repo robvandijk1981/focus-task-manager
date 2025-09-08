@@ -29,22 +29,22 @@ def get_db_connection():
             print(f"Database initialization failed: {e}")
             # Continue without database for basic functionality
     
-    database_url = os.environ.get('DATABASE_URL')
-    if database_url and database_url.startswith('postgresql://'):
-        # Production PostgreSQL database
+    # Check if we're on Railway (PORT environment variable is set)
+    if os.environ.get('PORT'):
+        # Production Railway deployment - use PostgreSQL
         try:
             import psycopg2
             import psycopg2.extras
-            conn = psycopg2.connect(database_url)
+            conn = psycopg2.connect(RAILWAY_POSTGRES_URL)
             conn.autocommit = True
             return conn
         except Exception as e:
             print(f"PostgreSQL connection failed: {e}")
             return None
     else:
-        # Local SQLite database
+        # Local development - use SQLite
         try:
-            conn = sqlite3.connect(DATABASE)
+            conn = sqlite3.connect('task_manager.db')
             conn.row_factory = sqlite3.Row
             return conn
         except Exception as e:
@@ -53,8 +53,7 @@ def get_db_connection():
 
 def is_postgres():
     """Check if we're using PostgreSQL"""
-    database_url = os.environ.get('DATABASE_URL')
-    return database_url and database_url.startswith('postgresql://')
+    return os.environ.get('PORT') is not None
 
 def execute_query(conn, query, params=None):
     """Execute a query with proper cursor handling for both SQLite and PostgreSQL"""
