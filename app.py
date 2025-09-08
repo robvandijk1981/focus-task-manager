@@ -669,6 +669,203 @@ def get_tasks(current_user_id):
     task_columns = ['id', 'goal_id', 'title', 'description', 'completed', 'created_at']
     return jsonify([convert_to_dict(task, task_columns) for task in tasks])
 
+@app.route('/api/goals', methods=['POST'])
+@token_required
+def create_goal(current_user_id):
+    """Create a new goal"""
+    data = request.get_json()
+    name = data.get('name')
+    track_id = data.get('track_id')
+    
+    if not name or not track_id:
+        return jsonify({'error': 'Name and track_id are required'}), 400
+    
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({'error': 'Database not available'}), 503
+    
+    try:
+        if is_postgres():
+            cursor = execute_query(conn, 
+                'INSERT INTO goals (name, track_id, user_id) VALUES (%s, %s, %s) RETURNING id',
+                (name, track_id, current_user_id)
+            )
+            goal_id = cursor.fetchone()[0]
+            cursor.close()
+        else:
+            cursor = execute_query(conn, 
+                'INSERT INTO goals (name, track_id, user_id) VALUES (?, ?, ?)',
+                (name, track_id, current_user_id)
+            )
+            goal_id = cursor.lastrowid
+            cursor.close()
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'goal': {
+                'id': goal_id,
+                'name': name,
+                'track_id': track_id,
+                'tasks': []
+            }
+        }), 201
+    except Exception as e:
+        if conn:
+            conn.close()
+        return jsonify({'error': f'Failed to create goal: {str(e)}'}), 500
+
+@app.route('/api/tasks', methods=['POST'])
+@token_required
+def create_task(current_user_id):
+    """Create a new task"""
+    data = request.get_json()
+    text = data.get('text')
+    goal_id = data.get('goal_id')
+    priority = data.get('priority', 'medium')
+    
+    if not text or not goal_id:
+        return jsonify({'error': 'Text and goal_id are required'}), 400
+    
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({'error': 'Database not available'}), 503
+    
+    try:
+        if is_postgres():
+            cursor = execute_query(conn, 
+                'INSERT INTO tasks (title, description, goal_id, user_id, priority) VALUES (%s, %s, %s, %s, %s) RETURNING id',
+                (text, '', goal_id, current_user_id, priority)
+            )
+            task_id = cursor.fetchone()[0]
+            cursor.close()
+        else:
+            cursor = execute_query(conn, 
+                'INSERT INTO tasks (title, description, goal_id, user_id, priority) VALUES (?, ?, ?, ?, ?)',
+                (text, '', goal_id, current_user_id, priority)
+            )
+            task_id = cursor.lastrowid
+            cursor.close()
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'task': {
+                'id': task_id,
+                'text': text,
+                'goal_id': goal_id,
+                'priority': priority,
+                'completed': False
+            }
+        }), 201
+    except Exception as e:
+        if conn:
+            conn.close()
+        return jsonify({'error': f'Failed to create task: {str(e)}'}), 500
+
+@app.route('/api/tasks/<int:task_id>', methods=['PUT'])
+@token_required
+def update_task(current_user_id, task_id):
+    """Update a task"""
+    data = request.get_json()
+    
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({'error': 'Database not available'}), 503
+    
+    try:
+        # Check if task exists and belongs to user
+        if is_postgres():
+            cursor = execute_query(conn, 'SELECT id FROM tasks WHERE id = %s AND user_id = %s', (task_id, current_user_id))
+        else:
+            cursor = execute_query(conn, 'SELECT id FROM tasks WHERE id = ? AND user_id = ?', (task_id, current_user_id))
+        
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({'error': 'Task not found'}), 404
+        
+        cursor.close()
+        
+        # Update task
+        updates = []
+        values = []
+        
+        if 'text' in data:
+            updates.append('title = %s' if is_postgres() else 'title = ?')
+            values.append(data['text'])
+        
+        if 'completed' in data:
+            updates.append('completed = %s' if is_postgres() else 'completed = ?')
+            values.append(data['completed'])
+        
+        if 'priority' in data:
+            updates.append('priority = %s' if is_postgres() else 'priority = ?')
+            values.append(data['priority'])
+        
+        if not updates:
+            conn.close()
+            return jsonify({'error': 'No updates provided'}), 400
+        
+        values.append(task_id)
+        
+        if is_postgres():
+            query = f'UPDATE tasks SET {", ".join(updates)} WHERE id = %s'
+        else:
+            query = f'UPDATE tasks SET {", ".join(updates)} WHERE id = ?'
+        
+        cursor = execute_query(conn, query, values)
+        cursor.close()
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'task': data}), 200
+    except Exception as e:
+        if conn:
+            conn.close()
+        return jsonify({'error': f'Failed to update task: {str(e)}'}), 500
+
+@app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
+@token_required
+def delete_task(current_user_id, task_id):
+    """Delete a task"""
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({'error': 'Database not available'}), 503
+    
+    try:
+        # Check if task exists and belongs to user
+        if is_postgres():
+            cursor = execute_query(conn, 'SELECT id FROM tasks WHERE id = %s AND user_id = %s', (task_id, current_user_id))
+        else:
+            cursor = execute_query(conn, 'SELECT id FROM tasks WHERE id = ? AND user_id = ?', (task_id, current_user_id))
+        
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({'error': 'Task not found'}), 404
+        
+        cursor.close()
+        
+        # Delete task
+        if is_postgres():
+            cursor = execute_query(conn, 'DELETE FROM tasks WHERE id = %s', (task_id,))
+        else:
+            cursor = execute_query(conn, 'DELETE FROM tasks WHERE id = ?', (task_id,))
+        
+        cursor.close()
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': 'Task deleted successfully'}), 200
+    except Exception as e:
+        if conn:
+            conn.close()
+        return jsonify({'error': f'Failed to delete task: {str(e)}'}), 500
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""

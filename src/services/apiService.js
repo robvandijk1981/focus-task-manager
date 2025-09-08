@@ -139,6 +139,37 @@ class ApiService {
     return response;
   }
 
+  async createGoal(goal) {
+    const response = await this.request('/api/goals', {
+      method: 'POST',
+      body: JSON.stringify(goal),
+    });
+    return response.goal || goal;
+  }
+
+  async createTask(task) {
+    const response = await this.request('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify(task),
+    });
+    return response.task || task;
+  }
+
+  async updateTask(taskId, updates) {
+    const response = await this.request(`/api/tasks/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    return response.task || updates;
+  }
+
+  async deleteTask(taskId) {
+    const response = await this.request(`/api/tasks/${taskId}`, {
+      method: 'DELETE',
+    });
+    return response;
+  }
+
   // Session methods
   async getSession() {
     // Mock implementation - return default session data
