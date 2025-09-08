@@ -479,6 +479,61 @@ def get_tracks(current_user_id):
     track_columns = ['id', 'user_id', 'name', 'description', 'color', 'created_at']
     return jsonify([convert_to_dict(track, track_columns) for track in tracks])
 
+@app.route('/api/tracks/bulk-sync', methods=['POST'])
+@token_required
+def bulk_sync_tracks(current_user_id):
+    """Bulk sync tracks for the current user"""
+    data = request.get_json()
+    tracks = data.get('tracks', [])
+    
+    conn = get_db_connection()
+    synced_tracks = []
+    
+    for track in tracks:
+        track_id = track.get('id')
+        if track_id:
+            # Update existing track
+            if is_postgres():
+                cursor = execute_query(conn,
+                    'UPDATE tracks SET name = %s, color = %s, icon = %s WHERE id = %s AND user_id = %s',
+                    (track.get('name'), track.get('color'), track.get('icon'), track_id, current_user_id)
+                )
+                cursor.close()
+            else:
+                cursor = execute_query(conn,
+                    'UPDATE tracks SET name = ?, color = ?, icon = ? WHERE id = ? AND user_id = ?',
+                    (track.get('name'), track.get('color'), track.get('icon'), track_id, current_user_id)
+                )
+                cursor.close()
+        else:
+            # Create new track
+            if is_postgres():
+                cursor = execute_query(conn,
+                    'INSERT INTO tracks (name, color, icon, user_id) VALUES (%s, %s, %s, %s) RETURNING id',
+                    (track.get('name'), track.get('color'), track.get('icon'), current_user_id)
+                )
+                track_id = cursor.fetchone()[0]
+                cursor.close()
+            else:
+                cursor = execute_query(conn,
+                    'INSERT INTO tracks (name, color, icon, user_id) VALUES (?, ?, ?, ?)',
+                    (track.get('name'), track.get('color'), track.get('icon'), current_user_id)
+                )
+                track_id = cursor.lastrowid
+                cursor.close()
+        
+        synced_tracks.append({
+            'id': track_id,
+            'name': track.get('name'),
+            'color': track.get('color'),
+            'icon': track.get('icon')
+        })
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'tracks': synced_tracks})
+
 @app.route('/api/tracks', methods=['POST'])
 @token_required
 def create_track(current_user_id):

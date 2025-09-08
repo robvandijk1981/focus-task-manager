@@ -109,12 +109,12 @@ class ApiService {
 
   // Track methods
   async getTracks() {
-    const response = await this.request('/tracks');
+    const response = await this.request('/api/tracks');
     return response.tracks || [];
   }
 
   async syncTracks(tracks) {
-    const response = await this.request('/tracks/bulk-sync', {
+    const response = await this.request('/api/tracks/bulk-sync', {
       method: 'POST',
       body: JSON.stringify({ tracks }),
     });
@@ -122,7 +122,7 @@ class ApiService {
   }
 
   async createTrack(track) {
-    const response = await this.request('/tracks', {
+    const response = await this.request('/api/tracks', {
       method: 'POST',
       body: JSON.stringify(track),
     });
@@ -131,52 +131,44 @@ class ApiService {
 
   // Session methods
   async getSession() {
-    const response = await this.request('/session');
-    return response.session || {};
+    // Mock implementation - return default session data
+    return { 
+      dailyIntention: '',
+      energyLevel: 5,
+      focusMode: 'normal',
+      currentTrackId: null,
+      completionStreaks: {}
+    };
   }
 
   async updateSession(sessionData) {
-    const response = await this.request('/session', {
-      method: 'PUT',
-      body: JSON.stringify(sessionData),
-    });
-    return response.session || {};
+    // Mock implementation - just return the data
+    return sessionData;
   }
 
   async setDailyIntention(intention) {
-    return await this.request('/session/daily-intention', {
-      method: 'POST',
-      body: JSON.stringify({ intention }),
-    });
+    // Mock implementation
+    return { intention };
   }
 
   async setEnergyLevel(energyLevel) {
-    return await this.request('/session/energy-level', {
-      method: 'POST',
-      body: JSON.stringify({ energy_level: energyLevel }),
-    });
+    // Mock implementation
+    return { energy_level: energyLevel };
   }
 
   async toggleFocusMode(focusMode = null) {
-    const body = focusMode !== null ? { focus_mode: focusMode } : {};
-    return await this.request('/session/focus-mode', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
+    // Mock implementation
+    return { focus_mode: focusMode };
   }
 
   async recordTrackSwitch(trackId) {
-    return await this.request('/session/track-switch', {
-      method: 'POST',
-      body: JSON.stringify({ track_id: trackId }),
-    });
+    // Mock implementation
+    return { track_id: trackId };
   }
 
   async updateCompletionStreak(action) {
-    return await this.request('/session/completion-streak', {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    });
+    // Mock implementation
+    return { action };
   }
 
   // Utility methods
