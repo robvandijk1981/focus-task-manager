@@ -14,9 +14,15 @@ CORS(app)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 
 DATABASE = os.environ.get('DATABASE_URL', 'task_manager.db')
+_db_initialized = False
 
 def get_db_connection():
     """Get database connection"""
+    global _db_initialized
+    if not _db_initialized:
+        init_db()
+        _db_initialized = True
+    
     database_url = os.environ.get('DATABASE_URL')
     if database_url and database_url.startswith('postgresql://'):
         # Production PostgreSQL database
@@ -746,11 +752,6 @@ if __name__ == '__main__':
         print("=== STARTING APPLICATION ===")
         print(f"PORT environment variable: {os.environ.get('PORT', 'NOT SET')}")
         print(f"DATABASE_URL environment variable: {'SET' if os.environ.get('DATABASE_URL') else 'NOT SET'}")
-        
-        # Initialize database on startup
-        print("Initializing database...")
-        init_db()
-        print("Database initialized successfully")
         
         # Get port from environment variable (for cloud deployment) or default to 5000
         port = int(os.environ.get('PORT', 5000))
