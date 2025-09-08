@@ -1,0 +1,631 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Dark grey background override */
+body {
+  background-color: #374151 !important;
+  min-height: 100vh;
+}
+
+/* Custom drag and drop styles */
+.draggable-task {
+  cursor: grab;
+  transition: all 0.2s ease;
+}
+
+.draggable-task:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.draggable-task.dragging {
+  cursor: grabbing;
+  opacity: 0.8;
+  transform: rotate(5deg);
+  z-index: 1000;
+}
+
+.drop-zone {
+  transition: all 0.2s ease;
+  border: 2px dashed transparent;
+}
+
+.drop-zone.drag-over {
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.today-task {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+
+/* ADHD Phase 2 Enhancements - Task Completion Animations */
+
+/* Task completion animation */
+@keyframes taskComplete {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); background-color: #10b981; color: white; }
+  100% { transform: scale(0.95); opacity: 0.7; }
+}
+
+.task-completing {
+  animation: taskComplete 0.6s ease-in-out;
+}
+
+/* Checkmark bounce animation */
+@keyframes checkmarkBounce {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.checkmark-bounce {
+  animation: checkmarkBounce 0.4s ease-out;
+}
+
+/* Celebration particles */
+@keyframes celebrationParticle {
+  0% { 
+    transform: translateY(0) scale(1); 
+    opacity: 1; 
+  }
+  100% { 
+    transform: translateY(-50px) scale(0.5); 
+    opacity: 0; 
+  }
+}
+
+.celebration-particle {
+  animation: celebrationParticle 0.8s ease-out forwards;
+  position: absolute;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* Goal completion fireworks */
+@keyframes goalFireworks {
+  0% { 
+    transform: scale(0) rotate(0deg); 
+    opacity: 1; 
+  }
+  50% { 
+    transform: scale(1.5) rotate(180deg); 
+    opacity: 0.8; 
+  }
+  100% { 
+    transform: scale(2) rotate(360deg); 
+    opacity: 0; 
+  }
+}
+
+.goal-fireworks {
+  animation: goalFireworks 1.2s ease-out forwards;
+  position: absolute;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* Streak counter animation */
+@keyframes streakCount {
+  0% { 
+    transform: scale(1); 
+    color: inherit; 
+  }
+  50% { 
+    transform: scale(1.3); 
+    color: #f59e0b; 
+    font-weight: bold; 
+  }
+  100% { 
+    transform: scale(1); 
+    color: #10b981; 
+    font-weight: bold; 
+  }
+}
+
+.streak-animation {
+  animation: streakCount 0.8s ease-in-out;
+}
+
+/* Focus Mode pulse animation */
+@keyframes focusPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.focus-pulse {
+  animation: focusPulse 2s ease-in-out infinite;
+}
+
+/* Progressive disclosure animations */
+@keyframes slideDown {
+  0% { 
+    max-height: 0; 
+    opacity: 0; 
+    transform: translateY(-10px); 
+  }
+  100% { 
+    max-height: 500px; 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes slideUp {
+  0% { 
+    max-height: 500px; 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+  100% { 
+    max-height: 0; 
+    opacity: 0; 
+    transform: translateY(-10px); 
+  }
+}
+
+.slide-down {
+  animation: slideDown 0.3s ease-out forwards;
+  overflow: hidden;
+}
+
+.slide-up {
+  animation: slideUp 0.3s ease-out forwards;
+  overflow: hidden;
+}
+
+/* ADHD-friendly button hover states */
+.adhd-button {
+  transition: all 0.2s ease-in-out;
+}
+
+.adhd-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.adhd-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Success feedback animation */
+@keyframes successFeedback {
+  0% { 
+    background-color: transparent; 
+    border-color: currentColor; 
+  }
+  50% { 
+    background-color: #10b981; 
+    border-color: #10b981; 
+    color: white; 
+    transform: scale(1.02); 
+  }
+  100% { 
+    background-color: #dcfce7; 
+    border-color: #10b981; 
+    color: #166534; 
+    transform: scale(1); 
+  }
+}
+
+.success-feedback {
+  animation: successFeedback 0.6s ease-in-out forwards;
+}
+
+/* Daily focus time indicator */
+.time-indicator {
+  position: relative;
+  overflow: hidden;
+}
+
+.time-indicator::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #10b981, #3b82f6);
+  animation: timeProgress 25s linear infinite;
+}
+
+@keyframes timeProgress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+
+
+/* ADHD Phase 3 Enhancements - Consistent Button Patterns & Progressive Disclosure */
+
+/* Enhanced ADHD-friendly button interactions */
+.adhd-button {
+  transition: all 0.2s ease-in-out;
+  min-height: 44px; /* ADHD-friendly touch target */
+  position: relative;
+}
+
+.adhd-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.adhd-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.adhd-button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Progressive disclosure animations */
+.goal-collapse-enter {
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+.goal-collapse-exit {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+/* Daily focus status indicators */
+.energy-indicator {
+  position: relative;
+  overflow: hidden;
+}
+
+.energy-indicator.low::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 33%;
+  background: #ef4444;
+}
+
+.energy-indicator.medium::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 66%;
+  background: #f59e0b;
+}
+
+.energy-indicator.high::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background: #10b981;
+}
+
+/* Time awareness indicators */
+.time-warning {
+  animation: pulseWarning 2s ease-in-out infinite;
+}
+
+@keyframes pulseWarning {
+  0%, 100% { 
+    background-color: transparent; 
+  }
+  50% { 
+    background-color: rgba(251, 191, 36, 0.1); 
+  }
+}
+
+/* Context switch counter styling */
+.switch-counter {
+  position: relative;
+}
+
+.switch-counter.high-switches {
+  color: #ef4444;
+  font-weight: bold;
+}
+
+.switch-counter.medium-switches {
+  color: #f59e0b;
+  font-weight: bold;
+}
+
+/* Urgent task highlighting */
+.urgent-task {
+  border-left: 4px solid #ef4444;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.05), transparent);
+}
+
+/* Goal collapse/expand button styling */
+.collapse-toggle {
+  transition: transform 0.2s ease-in-out;
+}
+
+.collapse-toggle.collapsed {
+  transform: rotate(-90deg);
+}
+
+/* ADHD-friendly focus states */
+.adhd-input:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Consistent color coding for actions */
+.action-complete {
+  background-color: #dcfce7;
+  border-color: #10b981;
+  color: #166534;
+}
+
+.action-complete:hover {
+  background-color: #bbf7d0;
+  border-color: #059669;
+}
+
+.action-navigate {
+  background-color: #dbeafe;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+
+.action-navigate:hover {
+  background-color: #bfdbfe;
+  border-color: #2563eb;
+}
+
+.action-delete {
+  background-color: #fee2e2;
+  border-color: #ef4444;
+  color: #dc2626;
+}
+
+.action-delete:hover {
+  background-color: #fecaca;
+  border-color: #dc2626;
+}
+
+/* Progressive disclosure task count badges */
+.task-count-badge {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background-color: #f3f4f6;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.task-count-badge.urgent {
+  background-color: #fef2f2;
+  color: #dc2626;
+}
+
+/* Daily intention display */
+.daily-intention {
+  background: linear-gradient(135deg, #dbeafe, #e0e7ff);
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  padding: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.daily-intention::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: #3b82f6;
+}
+
+/* Energy level visual indicators */
+.energy-low {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  border-color: #fca5a5;
+}
+
+.energy-medium {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border-color: #fcd34d;
+}
+
+.energy-high {
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  border-color: #86efac;
+}
+
+
+
+/* Additional ADHD Task Completion Animations */
+.celebration-popup {
+  animation: celebrationBounce 3s ease-out forwards;
+}
+
+@keyframes celebrationBounce {
+  0% {
+    transform: scale(0.8) translateY(20px);
+    opacity: 0;
+  }
+  20% {
+    transform: scale(1.1) translateY(-10px);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ADHD Modal Animations */
+.modal-enter {
+  animation: modalSlideIn 0.3s ease-out forwards;
+}
+
+@keyframes modalSlideIn {
+  0% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ADHD Track Switch Warning */
+.track-switch-warning {
+  border: 2px solid #f59e0b;
+  background: #fef3c7;
+  animation: warningPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes warningPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+  }
+}
+

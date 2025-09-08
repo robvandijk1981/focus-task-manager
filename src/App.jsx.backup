@@ -1,0 +1,1434 @@
+import { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button.jsx'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
+import { Badge } from '@/components/ui/badge.jsx'
+import { Textarea } from '@/components/ui/textarea.jsx'
+import { Input } from '@/components/ui/input.jsx'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
+import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
+import { Plus, Filter, GripVertical, Brain, Settings, Loader2, Sparkles, CheckCircle, X, AlertTriangle, ChevronUp } from 'lucide-react'
+import { initialTracksData, trackColors, priorityColors } from './data/tracksData.js'
+import AISettings from './components/AISettings.jsx'
+import AITaskSuggestions from './components/AITaskSuggestions.jsx'
+import VoiceRecorder from './components/VoiceRecorder.jsx'
+import VoiceProcessingResults from './components/VoiceProcessingResults.jsx'
+import aiService from './services/aiService.js'
+import './App.css'
+
+function App() {
+  const [tracks, setTracks] = useState(initialTracksData)
+  const [selectedFilters, setSelectedFilters] = useState([])
+  const [newTaskText, setNewTaskText] = useState('')
+  const [newGoalText, setNewGoalText] = useState('')
+  
+  // AI-related state
+  const [showAISettings, setShowAISettings] = useState(false)
+  const [aiSuggestions, setAiSuggestions] = useState(null)
+  const [showAISuggestions, setShowAISuggestions] = useState(false)
+  const [isProcessingNotes, setIsProcessingNotes] = useState(false)
+  const [processingTrackId, setProcessingTrackId] = useState(null)
+  
+  // Voice processing state
+  const [voiceResults, setVoiceResults] = useState(null)
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false)
+  const [processingVoiceTrackId, setProcessingVoiceTrackId] = useState(null)
+  
+  // To Do Today state
+  const [todayTasks, setTodayTasks] = useState([])
+  const [draggedTask, setDraggedTask] = useState(null)
+
+  // ADHD Focus Mode state
+  const [focusMode, setFocusMode] = useState(true) // Default to focus mode for ADHD
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0)
+  const [showTrackSwitchConfirm, setShowTrackSwitchConfirm] = useState(false)
+  const [pendingTrackIndex, setPendingTrackIndex] = useState(null)
+
+  // ADHD Phase 2: Enhanced task completion with animations and celebrations
+  const [completionStreak, setCompletionStreak] = useState(0)
+  const [showCelebration, setShowCelebration] = useState(false)
+  const [celebrationMessage, setCelebrationMessage] = useState('')
+
+  // ADHD Phase 3: Progressive Disclosure & Daily Focus
+  const [collapsedGoals, setCollapsedGoals] = useState(new Set()) // Track which goals are collapsed
+  const [dailyIntention, setDailyIntention] = useState('') // Daily focus intention
+  const [energyLevel, setEnergyLevel] = useState('Normal') // Current energy level
+  const [showDailySetup, setShowDailySetup] = useState(false) // Morning focus ritual
+  const [trackSwitchCount, setTrackSwitchCount] = useState(0) // Track context switches
+  const [sessionStartTime, setSessionStartTime] = useState(Date.now()) // Track session time
+  const [currentTrackTime, setCurrentTrackTime] = useState(Date.now()) // Track time in current track
+  
+  // Scroll to top functionality
+  const [showScrollTop, setShowScrollTop] = useState(false)
+
+  // Load data from localStorage on mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('trackGoalTaskData')
+    if (savedData) {
+      setTracks(JSON.parse(savedData))
+    }
+    
+    const savedTodayTasks = localStorage.getItem('todayTasks')
+    if (savedTodayTasks) {
+      setTodayTasks(JSON.parse(savedTodayTasks))
+    }
+  }, [])
+
+  // Save data to localStorage whenever tracks change
+  useEffect(() => {
+    localStorage.setItem('trackGoalTaskData', JSON.stringify(tracks))
+  }, [tracks])
+
+  // Save today tasks to localStorage
+  useEffect(() => {
+    localStorage.setItem('todayTasks', JSON.stringify(todayTasks))
+  }, [todayTasks])
+
+  // Handle scroll to show/hide scroll to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300)
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Scroll to top function
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
+  }
+
+  // Check if AI is available
+  const isAIAvailable = aiService.hasApiKey()
+
+  // Process notes with AI
+  const processNotesWithAI = async (trackId) => {
+    const track = tracks.find(t => t.id === trackId)
+    if (!track || !track.notes.trim()) {
+      alert('Please add some notes to process')
+      return
+    }
+
+    if (!isAIAvailable) {
+      setShowAISettings(true)
+      return
+    }
+
+    setIsProcessingNotes(true)
+    setProcessingTrackId(trackId)
+
+    try {
+      const suggestions = await aiService.extractTasks(track.notes, tracks, trackId)
+      console.log('AI suggestions received:', suggestions)
+      
+      // Pre-fill track and goal information and add summary to context
+      const enhancedSuggestions = {
+        ...suggestions,
+        trackId: trackId,
+        trackName: track.name,
+        summary: suggestions.summary || 'AI processing completed'
+      }
+
+      // Add summary to track context if provided
+      if (suggestions.summary && suggestions.summary.trim()) {
+        const summaryNote = `📝 ${new Date().toLocaleDateString()}: ${suggestions.summary}`
+        setTracks(prevTracks => prevTracks.map(t => {
+          if (t.id === trackId) {
+            const currentContext = t.context || ''
+            const updatedContext = currentContext 
+              ? `${currentContext}\n\n${summaryNote}`
+              : summaryNote
+            return { ...t, context: updatedContext, notes: '' } // Clear notes after processing
+          }
+          return t
+        }))
+      } else {
+        // Clear notes even if no summary
+        setTracks(prevTracks => prevTracks.map(t => 
+          t.id === trackId ? { ...t, notes: '' } : t
+        ))
+      }
+
+      setAiSuggestions(enhancedSuggestions)
+      setShowAISuggestions(true)
+    } catch (error) {
+      console.error('AI Processing Error:', error)
+      alert(`AI processing failed: ${error.message}`)
+    } finally {
+      setIsProcessingNotes(false)
+      setProcessingTrackId(null)
+    }
+  }
+
+  // Apply AI-suggested tasks
+  const applyAISuggestedTasks = (suggestedTasks) => {
+    setTracks(tracks.map(track => {
+      const trackTasks = suggestedTasks.filter(task => task.suggested_track_id === track.id)
+      if (trackTasks.length === 0) return track
+
+      return {
+        ...track,
+        goals: track.goals.map(goal => {
+          const goalTasks = trackTasks.filter(task => task.suggested_goal_id === goal.id)
+          if (goalTasks.length === 0) return goal
+
+          const newTasks = goalTasks.map(task => ({
+            id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            text: task.text,
+            priority: task.suggested_priority,
+            trackId: track.id, // Add trackId for Today button
+            goalId: goal.id // Add goalId for Today button
+          }))
+
+          return {
+            ...goal,
+            tasks: [...goal.tasks, ...newTasks]
+          }
+        })
+      }
+    }))
+
+    setShowAISuggestions(false)
+    setAiSuggestions(null)
+  }
+
+  // Process voice note with AI
+  const processVoiceNote = async (transcript, trackId) => {
+    console.log('Processing voice note:', { transcript, trackId })
+    
+    if (!transcript.trim()) {
+      alert('No voice input detected')
+      return
+    }
+
+    if (!isAIAvailable) {
+      console.log('AI not available, showing settings')
+      setShowAISettings(true)
+      return
+    }
+
+    setIsProcessingVoice(true)
+    setProcessingVoiceTrackId(trackId)
+
+    try {
+      console.log('Calling AI service with:', { transcript, trackId, tracksCount: tracks.length })
+      const results = await aiService.processVoiceNote(transcript, trackId, tracks)
+      console.log('AI service returned:', results)
+      
+      // Add trackId to results for the component
+      setVoiceResults({ ...results, trackId })
+      console.log('Voice results set successfully')
+    } catch (error) {
+      console.error('Voice Processing Error:', error)
+      alert(`Voice processing failed: ${error.message}`)
+    } finally {
+      setIsProcessingVoice(false)
+      setProcessingVoiceTrackId(null)
+    }
+  }
+
+  // Apply voice processing results
+  const applyVoiceResults = (results) => {
+    console.log('Applying voice results:', results)
+    
+    // Update track context if provided
+    if (results.contextUpdate && results.contextUpdate.trim()) {
+      setTracks(prevTracks => prevTracks.map(track => {
+        if (track.id === results.trackId) {
+          const currentContext = track.context || ''
+          const newContext = currentContext 
+            ? `${currentContext}\n\n${results.contextUpdate}`
+            : results.contextUpdate
+          return { ...track, context: newContext }
+        }
+        return track
+      }))
+    }
+
+    // Add extracted tasks
+    if (results.extractedTasks && results.extractedTasks.length > 0) {
+      setTracks(prevTracks => prevTracks.map(track => {
+        if (track.id !== results.trackId) return track
+
+        let updatedTrack = { ...track }
+        
+        results.extractedTasks.forEach(task => {
+          console.log('Processing task:', task)
+          
+          if (task.suggested_goal_id === 'new-goal') {
+            // Create new goal for this task
+            const newGoalId = `goal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+            const newGoal = {
+              id: newGoalId,
+              name: task.suggested_goal_name || 'New Goal',
+              tasks: [{
+                id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                text: task.text,
+                priority: task.suggested_priority,
+                trackId: results.trackId, // Add trackId for Today button
+                goalId: newGoalId // Add goalId for Today button
+              }]
+            }
+            updatedTrack.goals = [...updatedTrack.goals, newGoal]
+            console.log('Created new goal:', newGoal.name)
+          } else {
+            // Add to existing goal
+            updatedTrack.goals = updatedTrack.goals.map(goal => {
+              if (goal.id === task.suggested_goal_id) {
+                const newTask = {
+                  id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  text: task.text,
+                  priority: task.suggested_priority,
+                  trackId: results.trackId, // Add trackId for Today button
+                  goalId: goal.id // Add goalId for Today button
+                }
+                console.log('Added task to existing goal:', goal.name, newTask.text)
+                return {
+                  ...goal,
+                  tasks: [...goal.tasks, newTask]
+                }
+              }
+              return goal
+            })
+          }
+        })
+
+        return updatedTrack
+      }))
+    }
+
+    // Clear voice results
+    setVoiceResults(null)
+  }
+
+  // Drag and drop functions
+  const handleDragStart = (e, task, trackId, goalId) => {
+    const taskData = {
+      ...task,
+      trackId,
+      goalId,
+      trackName: tracks.find(t => t.id === trackId)?.name,
+      goalName: tracks.find(t => t.id === trackId)?.goals.find(g => g.id === goalId)?.name
+    }
+    setDraggedTask(taskData)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDropToToday = (e) => {
+    e.preventDefault()
+    if (draggedTask) {
+      // Check if task is already in today's list
+      const isAlreadyInToday = todayTasks.some(task => 
+        task.id === draggedTask.id && 
+        task.trackId === draggedTask.trackId && 
+        task.goalId === draggedTask.goalId
+      )
+      
+      if (!isAlreadyInToday) {
+        setTodayTasks(prev => [...prev, draggedTask])
+      }
+      setDraggedTask(null)
+    }
+  }
+
+  const removeFromToday = (taskToRemove) => {
+    setTodayTasks(prev => prev.filter(task => 
+      !(task.id === taskToRemove.id && 
+        task.trackId === taskToRemove.trackId && 
+        task.goalId === taskToRemove.goalId)
+    ))
+  }
+
+  // Create celebration particles
+  const createCelebrationParticles = (element) => {
+    const rect = element.getBoundingClientRect()
+    const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6']
+    
+    for (let i = 0; i < 6; i++) {
+      const particle = document.createElement('div')
+      particle.className = 'celebration-particle'
+      particle.style.cssText = `
+        position: fixed;
+        left: ${rect.left + rect.width / 2}px;
+        top: ${rect.top + rect.height / 2}px;
+        width: 8px;
+        height: 8px;
+        background: ${colors[i % colors.length]};
+        border-radius: 50%;
+        transform: translate(${(Math.random() - 0.5) * 100}px, ${(Math.random() - 0.5) * 100}px);
+      `
+      document.body.appendChild(particle)
+      
+      setTimeout(() => {
+        if (particle.parentNode) {
+          particle.parentNode.removeChild(particle)
+        }
+      }, 800)
+    }
+  }
+
+  // Enhanced task completion with ADHD rewards
+  const markTodayTaskComplete = (taskToComplete) => {
+    const taskElement = document.querySelector(`[data-task-id="${taskToComplete.id}"]`)
+    
+    if (taskElement) {
+      // Add completion animation
+      taskElement.classList.add('task-completing')
+      
+      // Create celebration particles
+      createCelebrationParticles(taskElement)
+      
+      // Update streak counter
+      const newStreak = completionStreak + 1
+      setCompletionStreak(newStreak)
+      
+      // Show celebration message
+      const messages = [
+        `Great job! ${newStreak} tasks completed today! 🎉`,
+        `You're on fire! ${newStreak} tasks done! 🔥`,
+        `Awesome progress! ${newStreak} tasks completed! ⭐`,
+        `Keep it up! ${newStreak} tasks finished! 💪`,
+        `Amazing work! ${newStreak} tasks done today! 🚀`
+      ]
+      
+      setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)])
+      setShowCelebration(true)
+      
+      // Hide celebration after 3 seconds
+      setTimeout(() => setShowCelebration(false), 3000)
+      
+      // Remove from today's list after animation
+      setTimeout(() => {
+        removeFromToday(taskToComplete)
+      }, 600)
+    } else {
+      // Fallback if element not found
+      removeFromToday(taskToComplete)
+      setCompletionStreak(prev => prev + 1)
+    }
+
+    // Log completion to track context and remove from original goal
+    const completionNote = `✅ Completed task: "${taskToComplete.text}" from goal "${taskToComplete.goalName}" (${new Date().toLocaleDateString()})`
+    
+    setTracks(prevTracks => prevTracks.map(track => {
+      if (track.id === taskToComplete.trackId) {
+        const currentContext = track.context || ''
+        const updatedContext = currentContext 
+          ? `${currentContext}\n\n${completionNote}`
+          : completionNote
+        
+        return {
+          ...track,
+          context: updatedContext,
+          goals: track.goals.map(goal => {
+            if (goal.id === taskToComplete.goalId) {
+              return {
+                ...goal,
+                tasks: goal.tasks.filter(task => task.id !== taskToComplete.id)
+              }
+            }
+            return goal
+          })
+        }
+      }
+      return track
+    }))
+  }
+
+  // Add task to today list (for button click)
+  const addToTodayList = (task, trackId, goalId) => {
+    const track = tracks.find(t => t.id === trackId)
+    const goal = track?.goals.find(g => g.id === goalId)
+    
+    const taskData = {
+      ...task,
+      trackId,
+      goalId,
+      trackName: track?.name || 'Unknown Track',
+      goalName: goal?.name || 'Unknown Goal'
+    }
+    
+    // Check if task is already in today's list
+    const isAlreadyInToday = todayTasks.some(todayTask => 
+      todayTask.id === task.id && 
+      todayTask.trackId === trackId && 
+      todayTask.goalId === goalId
+    )
+    
+    if (!isAlreadyInToday) {
+      setTodayTasks(prev => [...prev, taskData])
+    }
+  }
+
+  // Update track notes
+  const updateTrackNotes = (trackId, notes) => {
+    setTracks(tracks.map(track => 
+      track.id === trackId ? { ...track, notes } : track
+    ))
+  }
+
+  // Update track context
+  const updateTrackContext = (trackId, context) => {
+    setTracks(tracks.map(track => 
+      track.id === trackId ? { ...track, context } : track
+    ))
+  }
+
+  // Update task priority
+  const updateTaskPriority = (trackId, goalId, taskId, priority) => {
+    setTracks(tracks.map(track => {
+      if (track.id === trackId) {
+        return {
+          ...track,
+          goals: track.goals.map(goal => {
+            if (goal.id === goalId) {
+              // Check if we're setting to high priority and already have 3 high priority tasks
+              const currentHighTasks = goal.tasks.filter(t => t.priority === 'high' && t.id !== taskId).length
+              if (priority === 'high' && currentHighTasks >= 3) {
+                alert('Maximum 3 high priority tasks per goal allowed!')
+                return goal
+              }
+              
+              return {
+                ...goal,
+                tasks: goal.tasks.map(task =>
+                  task.id === taskId ? { ...task, priority } : task
+                )
+              }
+            }
+            return goal
+          })
+        }
+      }
+      return track
+    }))
+  }
+
+  // Add new task
+  const addTask = (trackId, goalId) => {
+    if (!newTaskText.trim()) return
+    
+    const newTask = {
+      id: `task-${Date.now()}`,
+      text: newTaskText.trim(),
+      priority: null
+    }
+    
+    setTracks(tracks.map(track => {
+      if (track.id === trackId) {
+        return {
+          ...track,
+          goals: track.goals.map(goal =>
+            goal.id === goalId 
+              ? { ...goal, tasks: [...goal.tasks, newTask] }
+              : goal
+          )
+        }
+      }
+      return track
+    }))
+    
+    setNewTaskText('')
+  }
+
+  // Add new goal
+  const addGoal = (trackId) => {
+    if (!newGoalText.trim()) return
+    
+    const newGoal = {
+      id: `goal-${Date.now()}`,
+      name: newGoalText.trim(),
+      tasks: []
+    }
+    
+    setTracks(tracks.map(track =>
+      track.id === trackId 
+        ? { ...track, goals: [...track.goals, newGoal] }
+        : track
+    ))
+    
+    setNewGoalText('')
+  }
+
+  // Delete task
+  const deleteTask = (trackId, goalId, taskId) => {
+    setTracks(tracks.map(track => {
+      if (track.id === trackId) {
+        return {
+          ...track,
+          goals: track.goals.map(goal =>
+            goal.id === goalId
+              ? { ...goal, tasks: goal.tasks.filter(task => task.id !== taskId) }
+              : goal
+          )
+        }
+      }
+      return track
+    }))
+  }
+
+  // Complete goal
+  const completeGoal = (trackId, goalId) => {
+    const track = tracks.find(t => t.id === trackId)
+    const goal = track?.goals.find(g => g.id === goalId)
+    
+    if (!goal) return
+    
+    // Add completion note to track context
+    const completionNote = `Completed goal: ${goal.name} (${new Date().toLocaleDateString()})`
+    const currentContext = track.context || ''
+    const updatedContext = currentContext 
+      ? `${currentContext}\n\n${completionNote}`
+      : completionNote
+    
+    // Remove goal and update context
+    setTracks(tracks.map(t => {
+      if (t.id === trackId) {
+        return {
+          ...t,
+          context: updatedContext,
+          goals: t.goals.filter(g => g.id !== goalId)
+        }
+      }
+      return t
+    }))
+    
+    // Show celebration message
+    alert(`🎉 Congratulations! You completed "${goal.name}"! 🎉`)
+  }
+
+  // Get filtered tasks for to-do list
+  const getFilteredTasks = () => {
+    if (selectedFilters.length === 0) return []
+    
+    const filteredTasks = []
+    tracks.forEach(track => {
+      if (selectedFilters.includes(track.id)) {
+        track.goals.forEach(goal => {
+          goal.tasks.forEach(task => {
+            if (task.priority === 'high' || task.priority === 'medium') {
+              filteredTasks.push({
+                ...task,
+                trackName: track.name,
+                goalName: goal.name,
+                trackColor: track.color,
+                trackId: track.id,
+                goalId: goal.id
+              })
+            }
+          })
+        })
+      }
+    })
+    
+    // Sort by priority (high first, then medium)
+    return filteredTasks.sort((a, b) => {
+      if (a.priority === 'high' && b.priority === 'medium') return -1
+      if (a.priority === 'medium' && b.priority === 'high') return 1
+      return 0
+    })
+  }
+
+  const filteredTasks = getFilteredTasks()
+
+  // ADHD Focus Mode functions
+  const switchTrack = (newIndex) => {
+    if (focusMode && newIndex !== currentTrackIndex) {
+      setPendingTrackIndex(newIndex)
+      setShowTrackSwitchConfirm(true)
+    } else {
+      setCurrentTrackIndex(newIndex)
+    }
+  }
+
+  const confirmTrackSwitch = () => {
+    // ADHD Phase 3: Track context switches and time awareness
+    setTrackSwitchCount(prev => prev + 1)
+    setCurrentTrackTime(Date.now())
+    
+    setCurrentTrackIndex(pendingTrackIndex)
+    setShowTrackSwitchConfirm(false)
+    setPendingTrackIndex(null)
+  }
+
+  const cancelTrackSwitch = () => {
+    setShowTrackSwitchConfirm(false)
+    setPendingTrackIndex(null)
+  }
+
+  const toggleFocusMode = () => {
+    setFocusMode(!focusMode)
+    if (!focusMode) {
+      setCurrentTrackIndex(0) // Reset to first track when entering focus mode
+    }
+  }
+
+  // Get current track for focus mode
+  const getCurrentTrack = () => {
+    return focusMode ? tracks[currentTrackIndex] : null
+  }
+
+  // ADHD Phase 3: Progressive Disclosure functions
+  const toggleGoalCollapse = (goalId) => {
+    const newCollapsed = new Set(collapsedGoals)
+    if (newCollapsed.has(goalId)) {
+      newCollapsed.delete(goalId)
+    } else {
+      newCollapsed.add(goalId)
+    }
+    setCollapsedGoals(newCollapsed)
+  }
+
+  // ADHD Phase 3: Daily Focus functions
+  const getTimeInCurrentTrack = () => {
+    const minutes = Math.floor((Date.now() - currentTrackTime) / 60000)
+    return minutes
+  }
+
+  const getSessionTime = () => {
+    const minutes = Math.floor((Date.now() - sessionStartTime) / 60000)
+    return minutes
+  }
+
+  const getEnergyBasedSuggestion = () => {
+    const timeInTrack = getTimeInCurrentTrack()
+    
+    if (energyLevel === 'Low') {
+      return "Low energy detected - try quick, easy tasks or take a break"
+    } else if (energyLevel === 'High' && timeInTrack > 45) {
+      return "High focus session! Consider a 5-minute break to maintain momentum"
+    } else if (timeInTrack > 60) {
+      return "You've been in this track for over an hour - time for a break?"
+    }
+    return null
+  }
+
+  const startDailyFocus = () => {
+    setShowDailySetup(true)
+  }
+
+  const completeDailySetup = () => {
+    setShowDailySetup(false)
+    // Reset daily counters
+    setTrackSwitchCount(0)
+    setSessionStartTime(Date.now())
+    setCurrentTrackTime(Date.now())
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header with AI Settings */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Track-Goal-Task Manager</h1>
+          <div className="flex items-center gap-3">
+            {isAIAvailable && (
+              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                <Brain className="h-3 w-3 mr-1" />
+                AI Ready
+              </Badge>
+            )}
+            <Button
+              variant="outline"
+              onClick={startDailyFocus}
+              className="flex items-center gap-2 bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100"
+            >
+              <Sparkles className="h-4 w-4" />
+              Daily Setup
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowAISettings(true)}
+              className="flex items-center gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              AI Settings
+            </Button>
+          </div>
+        </div>
+        
+        {/* AI Setup Alert */}
+        {!isAIAvailable && (
+          <Alert className="mb-6 border-blue-200 bg-blue-50">
+            <Brain className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              <strong>AI Features Available!</strong> Set up your OpenAI API key to automatically extract tasks from your notes.
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-blue-600 underline ml-2"
+                onClick={() => setShowAISettings(true)}
+              >
+                Set up now
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* ADHD Celebration Overlay */}
+        {showCelebration && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+            <div className="celebration-popup bg-green-500 text-white px-8 py-4 rounded-lg shadow-lg text-xl font-bold animate-bounce">
+              {celebrationMessage}
+            </div>
+          </div>
+        )}
+
+        {/* ADHD Streak Counter */}
+        {completionStreak > 0 && (
+          <div className="mb-6 flex justify-center">
+            <Badge className="bg-green-100 text-green-800 px-4 py-2 text-lg">
+              🔥 {completionStreak} tasks completed today!
+            </Badge>
+          </div>
+        )}
+        
+        {/* To Do Today */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              Today's Focus
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div 
+              className="drop-zone min-h-[100px] border-2 border-dashed border-gray-300 rounded-lg p-4 transition-all"
+              onDragOver={handleDragOver}
+              onDrop={handleDropToToday}
+            >
+              {todayTasks.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  <p className="text-lg mb-2">Add priority tasks here to focus on today</p>
+                  <p className="text-sm">Drag tasks from Priority Tasks below or use the "Today" button</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {todayTasks.map((task, index) => (
+                    <div
+                      key={`today-${task.trackId}-${task.goalId}-${task.id}-${index}`}
+                      data-task-id={task.id}
+                      className="flex items-center justify-between p-3 border rounded-lg bg-blue-50 border-blue-200"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Badge className={priorityColors[task.priority]}>
+                          {task.priority?.toUpperCase() || 'NO PRIORITY'}
+                        </Badge>
+                        <span className="font-medium">{task.text} ({task.goalName})</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => markTodayTaskComplete(task)}
+                          className="text-green-600 hover:bg-green-50"
+                        >
+                          Complete
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => removeFromToday(task)}
+                          className="text-red-600 hover:bg-red-50"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Priority Task Filter & To-Do List */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Priority Tasks
+            </CardTitle>
+            <div className="flex flex-wrap gap-2">
+              {tracks.map(track => {
+                const colors = trackColors[track.color]
+                const isSelected = selectedFilters.includes(track.id)
+                
+                return (
+                  <Button
+                    key={track.id}
+                    variant={isSelected ? "default" : "outline"}
+                    size="sm"
+                    className={isSelected ? colors.button : ''}
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedFilters(selectedFilters.filter(id => id !== track.id))
+                      } else {
+                        setSelectedFilters([...selectedFilters, track.id])
+                      }
+                    }}
+                  >
+                    {track.name}
+                  </Button>
+                )
+              })}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {filteredTasks.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">
+                Select tracks to view high and medium priority tasks
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {filteredTasks.map(task => {
+                  const colors = trackColors[task.trackColor]
+                  return (
+                    <div
+                      key={task.id}
+                      className={`draggable-task p-4 rounded-lg border-2 ${colors.border} ${colors.bg} flex items-center gap-3`}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, task, task.trackId, task.goalId)}
+                    >
+                      <GripVertical className="h-4 w-4 text-gray-400" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge className={priorityColors[task.priority]}>
+                            {task.priority.toUpperCase()}
+                          </Badge>
+                          <span className="text-sm text-gray-600">
+                            {task.trackName} → {task.goalName}
+                          </span>
+                        </div>
+                        <p className={colors.text}>{task.text}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => addToTodayList(task, task.trackId, task.goalId)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700"
+                        disabled={todayTasks.some(todayTask => 
+                          todayTask.id === task.id && 
+                          todayTask.trackId === task.trackId && 
+                          todayTask.goalId === task.goalId
+                        )}
+                      >
+                        {todayTasks.some(todayTask => 
+                          todayTask.id === task.id && 
+                          todayTask.trackId === task.trackId && 
+                          todayTask.goalId === task.goalId
+                        ) ? 'Added' : 'Today'}
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Track Tabs */}
+        <div className="mb-6">
+          {/* ADHD Focus Mode Controls */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <Badge variant={focusMode ? "default" : "outline"} className="text-sm">
+                🎯 Focus Mode {focusMode ? 'Active' : 'Inactive'}
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleFocusMode}
+                className={focusMode ? 'bg-blue-50 border-blue-300 text-blue-700' : ''}
+              >
+                {focusMode ? 'View All Tracks' : 'Enable Focus Mode'}
+              </Button>
+            </div>
+            
+            {focusMode && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => switchTrack(Math.max(0, currentTrackIndex - 1))}
+                  disabled={currentTrackIndex === 0}
+                  className="text-red-600 hover:bg-red-50"
+                >
+                  ← Previous
+                </Button>
+                <span className="text-sm text-gray-600 px-3">
+                  {currentTrackIndex + 1} of {tracks.length}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => switchTrack(Math.min(tracks.length - 1, currentTrackIndex + 1))}
+                  disabled={currentTrackIndex === tracks.length - 1}
+                  className="text-green-600 hover:bg-green-50"
+                >
+                  Next →
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <Tabs value={focusMode ? tracks[currentTrackIndex]?.id : tracks[currentTrackIndex]?.id} onValueChange={(value) => {
+          if (!focusMode) {
+            // In view all tracks mode, allow direct navigation
+            const trackIndex = tracks.findIndex(track => track.id === value)
+            if (trackIndex !== -1) {
+              setCurrentTrackIndex(trackIndex)
+            }
+          }
+        }} className="w-full">
+          {!focusMode && (
+            <TabsList className="grid grid-cols-4 lg:grid-cols-7">
+              {tracks.map(track => (
+                <TabsTrigger key={track.id} value={track.id} className="text-xs">
+                  {track.name}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          )}
+          
+          {(focusMode ? [tracks[currentTrackIndex]] : tracks).filter(Boolean).map(track => {
+            const colors = trackColors[track.color]
+            const isProcessingThisTrack = processingTrackId === track.id
+            
+            return (
+              <TabsContent key={track.id} value={track.id} className="mt-6">
+                <Card className={`${colors.border} border-2`}>
+                  <CardHeader className={colors.bg}>
+                    <CardTitle className={colors.text}>{track.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Track Context */}
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Track Context & Background</label>
+                      <Textarea
+                        placeholder="Describe the context and background for this track to help AI create better task suggestions..."
+                        value={track.context || ''}
+                        onChange={(e) => updateTrackContext(track.id, e.target.value)}
+                        className="min-h-[80px] max-h-[96px] overflow-y-auto resize-none"
+                        rows={4}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        This context helps AI understand your track better and create more relevant task suggestions
+                      </p>
+                    </div>
+
+                    {/* Track Notes with AI Processing */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-medium">Track Notes</label>
+                        <div className="flex gap-2">
+                          {isAIAvailable && (
+                            <Button
+                              onClick={() => processNotesWithAI(track.id)}
+                              disabled={isProcessingNotes || !track.notes.trim()}
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                            >
+                              {isProcessingThisTrack ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Processing...
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="h-3 w-3 mr-1" />
+                                  Process Notes
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <Textarea
+                        placeholder="Add notes for this track... (Use AI to extract tasks automatically)"
+                        value={track.notes}
+                        onChange={(e) => updateTrackNotes(track.id, e.target.value)}
+                        className="min-h-[100px]"
+                      />
+                      {!isAIAvailable && track.notes.trim() && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          💡 Set up AI to automatically extract tasks from these notes
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Voice Notes */}
+                    {isAIAvailable && (
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Voice Notes</label>
+                        <VoiceRecorder
+                          onTranscriptComplete={(transcript) => processVoiceNote(transcript, track.id)}
+                          isProcessing={isProcessingVoice && processingVoiceTrackId === track.id}
+                          trackColor={track.color}
+                        />
+                      </div>
+                    )}
+
+                    {/* Add New Goal */}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Add new goal..."
+                        value={newGoalText}
+                        onChange={(e) => setNewGoalText(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && addGoal(track.id)}
+                      />
+                      <Button onClick={() => addGoal(track.id)} className={colors.button}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Goals */}
+                    <div className="space-y-4">
+                      {track.goals.map(goal => {
+                        const isCollapsed = collapsedGoals.has(goal.id)
+                        return (
+                          <Card key={goal.id} className={colors.accent}>
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleGoalCollapse(goal.id)}
+                                    className="p-1 h-8 w-8 hover:bg-gray-100"
+                                  >
+                                    {isCollapsed ? '▶' : '▼'}
+                                  </Button>
+                                  <CardTitle className="text-lg">{goal.name}</CardTitle>
+                                  <Badge variant="outline" className="text-xs">
+                                    {goal.tasks.length} tasks
+                                  </Badge>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => completeGoal(track.id, goal.id)}
+                                  className="bg-green-50 border-green-300 text-green-700 hover:bg-green-100 hover:border-green-400"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Complete Goal
+                                </Button>
+                              </div>
+                            </CardHeader>
+                            {!isCollapsed && (
+                              <CardContent>
+                            {/* Add New Task */}
+                            <div className="flex gap-2 mb-4">
+                              <Input
+                                placeholder="Add new task..."
+                                value={newTaskText}
+                                onChange={(e) => setNewTaskText(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && addTask(track.id, goal.id)}
+                              />
+                              <Button onClick={() => addTask(track.id, goal.id)} size="sm">
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+
+                            {/* Tasks */}
+                            <div className="space-y-2">
+                              {goal.tasks.map(task => (
+                                <div key={task.id} className="flex items-center gap-3 p-3 bg-white rounded border">
+                                  <div className="flex-1">
+                                    <p className="text-sm">{task.text}</p>
+                                  </div>
+                                  <Select
+                                    value={task.priority || ''}
+                                    onValueChange={(value) => updateTaskPriority(track.id, goal.id, task.id, value)}
+                                  >
+                                    <SelectTrigger className="w-32">
+                                      <SelectValue placeholder="Priority" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="high">High</SelectItem>
+                                      <SelectItem value="medium">Medium</SelectItem>
+                                      <SelectItem value="low">Low</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => addToTodayList(task, track.id, goal.id)}
+                                    className="text-blue-600 hover:bg-blue-50"
+                                  >
+                                    Today
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => deleteTask(track.id, goal.id, task.id)}
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              ))}
+                              {goal.tasks.length === 0 && (
+                                <p className="text-gray-500 text-center py-4">No tasks yet</p>
+                                  )}
+                                </div>
+                              </CardContent>
+                            )}
+                          </Card>
+                        )
+                      })}
+                      {track.goals.length === 0 && (
+                        <p className="text-gray-500 text-center py-8">No goals yet. Add one above!</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )
+          })}
+        </Tabs>
+      </div>
+
+      {/* Overview Table */}
+      <div className="mt-8 mb-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Track Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3">Track</th>
+                    <th className="text-center py-2 px-3">Goals</th>
+                    <th className="text-center py-2 px-3">High Priority Tasks</th>
+                    <th className="text-center py-2 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tracks.map(track => {
+                    const goalCount = track.goals.length
+                    const highPriorityCount = track.goals.reduce((total, goal) => 
+                      total + goal.tasks.filter(task => task.priority === 'high').length, 0
+                    )
+                    const colors = trackColors[track.color] || trackColors.gray
+                    const hasWarning = highPriorityCount > 10
+
+                    return (
+                      <tr key={track.id} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${colors.bg}`}></div>
+                            <span className="font-medium">{track.name}</span>
+                          </div>
+                        </td>
+                        <td className="text-center py-3 px-3">
+                          <Badge variant="outline" className="text-xs">
+                            {goalCount}
+                          </Badge>
+                        </td>
+                        <td className="text-center py-3 px-3">
+                          <div className="flex items-center justify-center gap-1">
+                            <Badge 
+                              variant={hasWarning ? "destructive" : "outline"} 
+                              className="text-xs"
+                            >
+                              {highPriorityCount}
+                            </Badge>
+                            {hasWarning && (
+                              <AlertTriangle className="h-4 w-4 text-red-500" title="High priority tasks exceed 10" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="text-center py-3 px-3">
+                          {hasWarning ? (
+                            <Badge variant="destructive" className="text-xs">
+                              Overloaded
+                            </Badge>
+                          ) : highPriorityCount > 5 ? (
+                            <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-800">
+                              Busy
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs text-green-700 border-green-300">
+                              Balanced
+                            </Badge>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <AISettings 
+        isOpen={showAISettings} 
+        onClose={() => setShowAISettings(false)} 
+      />
+      
+      <AITaskSuggestions
+        suggestions={aiSuggestions}
+        tracks={tracks}
+        onApplyTasks={applyAISuggestedTasks}
+        onClose={() => {
+          setShowAISuggestions(false)
+          setAiSuggestions(null)
+        }}
+        isVisible={showAISuggestions}
+      />
+
+      <VoiceProcessingResults
+        results={voiceResults}
+        tracks={tracks}
+        onApplyResults={applyVoiceResults}
+        onClose={() => setVoiceResults(null)}
+        isVisible={!!voiceResults}
+      />
+
+      {/* ADHD Track Switch Confirmation Modal */}
+      {showTrackSwitchConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="h-6 w-6 text-orange-500" />
+              <h3 className="text-lg font-semibold">Switch Track?</h3>
+            </div>
+            <p className="text-gray-600 mb-4">
+              You're about to switch from <strong>{tracks[currentTrackIndex]?.name}</strong> to{' '}
+              <strong>{tracks[pendingTrackIndex]?.name}</strong>.
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              <strong>Tip:</strong> Frequent context switching can reduce focus and productivity. 
+              Consider finishing your current task first.
+            </p>
+            <div className="flex gap-3">
+              <Button
+                onClick={confirmTrackSwitch}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Switch Track
+              </Button>
+              <Button
+                onClick={cancelTrackSwitch}
+                variant="outline"
+                className="flex-1"
+              >
+                Stay Here
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADHD Daily Setup Modal */}
+      {showDailySetup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full mx-4">
+            <div className="flex items-center gap-3 mb-6">
+              <Sparkles className="h-6 w-6 text-orange-500" />
+              <h3 className="text-xl font-semibold">Daily Focus Setup</h3>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium mb-2">What's your main intention for today?</label>
+                <Textarea
+                  placeholder="e.g., Focus on client project, make progress on music goals..."
+                  value={dailyIntention}
+                  onChange={(e) => setDailyIntention(e.target.value)}
+                  className="min-h-[80px]"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Current Energy Level</label>
+                <Select value={energyLevel} onValueChange={setEnergyLevel}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">🔋 Low - Need easy tasks</SelectItem>
+                    <SelectItem value="Normal">⚡ Normal - Ready for regular work</SelectItem>
+                    <SelectItem value="High">🚀 High - Tackle challenging tasks</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">💡 Tip</h4>
+                <p className="text-sm text-blue-800">
+                  Setting daily intentions helps maintain focus and reduces decision fatigue. 
+                  Your energy level will help suggest appropriate tasks throughout the day.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <Button
+                onClick={completeDailySetup}
+                className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                Start Focused Day
+              </Button>
+              <Button
+                onClick={() => setShowDailySetup(false)}
+                variant="outline"
+                className="flex-1"
+              >
+                Skip Setup
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADHD Energy-Based Suggestion */}
+      {getEnergyBasedSuggestion() && (
+        <div className="fixed bottom-4 right-4 bg-blue-500 text-white p-4 rounded-lg shadow-lg max-w-sm">
+          <div className="flex items-start gap-2">
+            <Brain className="h-5 w-5 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-sm">Tip</p>
+              <p className="text-sm">{getEnergyBasedSuggestion()}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-blue-600 p-1 h-6 w-6"
+              onClick={() => setEnergyLevel('Normal')} // Simple way to dismiss
+            >
+              ×
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Scroll to Top Button */}
+      {showScrollTop && (
+        <Button
+          onClick={scrollToTop}
+          className="fixed bottom-4 left-4 bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 z-50"
+          size="sm"
+        >
+          <ChevronUp className="h-5 w-5" />
+        </Button>
+      )}
+    </div>
+  )
+}
+
+export default App
+
