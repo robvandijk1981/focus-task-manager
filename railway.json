@@ -3,8 +3,6 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "python3 app.py",
-    "healthcheckPath": "/health",
-    "healthcheckTimeout": 300
+    "startCommand": "python3 app.py"
   }
 }
