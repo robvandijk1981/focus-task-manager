@@ -543,6 +543,11 @@ def health_check():
             'timestamp': datetime.datetime.now().isoformat()
         }), 500
 
+@app.route('/health', methods=['GET'])
+def simple_health_check():
+    """Simple health check endpoint for Railway"""
+    return jsonify({'status': 'ok', 'message': 'App is running'}), 200
+
 @app.route('/api/test-db', methods=['GET'])
 def test_db():
     """Test database endpoint to debug cursor issues"""
@@ -611,11 +616,19 @@ def serve_static_files(path):
         return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == '__main__':
-    # Initialize database on startup
-    init_db()
-    
-    # Get port from environment variable (for cloud deployment) or default to 5000
-    port = int(os.environ.get('PORT', 5000))
-    
-    # Run the app
-    app.run(host='0.0.0.0', port=port, debug=False)
+    try:
+        # Initialize database on startup
+        print("Initializing database...")
+        init_db()
+        print("Database initialized successfully")
+        
+        # Get port from environment variable (for cloud deployment) or default to 5000
+        port = int(os.environ.get('PORT', 5000))
+        print(f"Starting server on port {port}")
+        
+        # Run the app
+        app.run(host='0.0.0.0', port=port, debug=False)
+    except Exception as e:
+        print(f"Error starting application: {e}")
+        import traceback
+        traceback.print_exc()
