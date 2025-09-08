@@ -129,6 +129,16 @@ class ApiService {
     return response.track || track;
   }
 
+  async getGoals(trackId) {
+    const response = await this.request(`/api/goals?track_id=${trackId}`);
+    return response;
+  }
+
+  async getTasks(goalId) {
+    const response = await this.request(`/api/tasks?goal_id=${goalId}`);
+    return response;
+  }
+
   // Session methods
   async getSession() {
     // Mock implementation - return default session data

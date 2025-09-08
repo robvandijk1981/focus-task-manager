@@ -14,88 +14,8 @@ import AITaskSuggestions from './components/AITaskSuggestions.jsx'
 import VoiceRecorder from './components/VoiceRecorder.jsx'
 import VoiceProcessingResults from './components/VoiceProcessingResults.jsx'
 import aiService from './services/aiService.js'
+import apiService from './services/apiService.js'
 import './App.css'
-
-// API Service for fetching data
-const apiService = {
-  async login() {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: 'rob.vandijk@example.com',
-        password: 'password123'
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Login failed');
-    }
-    
-    const data = await response.json();
-    localStorage.setItem('authToken', data.token);
-    return data.token;
-  },
-
-  async getTracks() {
-    let token = localStorage.getItem('authToken');
-    if (!token) {
-      token = await this.login();
-    }
-
-    const response = await fetch('/api/tracks', {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch tracks');
-    }
-
-    return await response.json();
-  },
-
-  async getGoals(trackId) {
-    let token = localStorage.getItem('authToken');
-    if (!token) {
-      token = await this.login();
-    }
-
-    const response = await fetch(`/api/goals?track_id=${trackId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch goals');
-    }
-
-    return await response.json();
-  },
-
-  async getTasks(goalId) {
-    let token = localStorage.getItem('authToken');
-    if (!token) {
-      token = await this.login();
-    }
-
-    const response = await fetch(`/api/tasks?goal_id=${goalId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch tasks');
-    }
-
-    return await response.json();
-  }
-};
 
 function App() {
   const [tracks, setTracks] = useState([])
