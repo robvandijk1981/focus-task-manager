@@ -20,22 +20,34 @@ def get_db_connection():
     """Get database connection"""
     global _db_initialized
     if not _db_initialized:
-        init_db()
-        _db_initialized = True
+        try:
+            init_db()
+            _db_initialized = True
+        except Exception as e:
+            print(f"Database initialization failed: {e}")
+            # Continue without database for basic functionality
     
     database_url = os.environ.get('DATABASE_URL')
     if database_url and database_url.startswith('postgresql://'):
         # Production PostgreSQL database
-        import psycopg2
-        import psycopg2.extras
-        conn = psycopg2.connect(database_url)
-        conn.autocommit = True
-        return conn
+        try:
+            import psycopg2
+            import psycopg2.extras
+            conn = psycopg2.connect(database_url)
+            conn.autocommit = True
+            return conn
+        except Exception as e:
+            print(f"PostgreSQL connection failed: {e}")
+            return None
     else:
         # Local SQLite database
-        conn = sqlite3.connect(DATABASE)
-        conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            conn = sqlite3.connect(DATABASE)
+            conn.row_factory = sqlite3.Row
+            return conn
+        except Exception as e:
+            print(f"SQLite connection failed: {e}")
+            return None
 
 def is_postgres():
     """Check if we're using PostgreSQL"""
@@ -284,57 +296,66 @@ def register():
     if not email or not password:
         return jsonify({'error': 'Email and password required'}), 400
     
-    # Check if user already exists
+    # Check database connection
     conn = get_db_connection()
-    if is_postgres():
-        cursor = execute_query(conn, 'SELECT id FROM users WHERE email = %s', (email,))
-        existing_user = cursor.fetchone()
-        cursor.close()
-    else:
-        cursor = execute_query(conn, 'SELECT id FROM users WHERE email = ?', (email,))
-        existing_user = cursor.fetchone()
-        cursor.close()
+    if conn is None:
+        return jsonify({'error': 'Database not available'}), 503
     
-    if existing_user:
+    try:
+        # Check if user already exists
+        if is_postgres():
+            cursor = execute_query(conn, 'SELECT id FROM users WHERE email = %s', (email,))
+            existing_user = cursor.fetchone()
+            cursor.close()
+        else:
+            cursor = execute_query(conn, 'SELECT id FROM users WHERE email = ?', (email,))
+            existing_user = cursor.fetchone()
+            cursor.close()
+        
+        if existing_user:
+            conn.close()
+            return jsonify({'error': 'User already exists'}), 400
+        
+        # Create new user
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        
+        if is_postgres():
+            cursor = execute_query(conn, 
+                'INSERT INTO users (email, password_hash, name) VALUES (%s, %s, %s) RETURNING id',
+                (email, password_hash, name)
+            )
+            user_id = cursor.fetchone()[0]
+            cursor.close()
+        else:
+            cursor = execute_query(conn,
+                'INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)',
+                (email, password_hash, name)
+            )
+            user_id = cursor.lastrowid
+            cursor.close()
+        
+        conn.commit()
         conn.close()
-        return jsonify({'error': 'User already exists'}), 400
-    
-    # Create new user
-    password_hash = hashlib.sha256(password.encode()).hexdigest()
-    
-    if is_postgres():
-        cursor = execute_query(conn, 
-            'INSERT INTO users (email, password_hash, name) VALUES (%s, %s, %s) RETURNING id',
-            (email, password_hash, name)
-        )
-        user_id = cursor.fetchone()[0]
-        cursor.close()
-    else:
-        cursor = execute_query(conn,
-            'INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)',
-            (email, password_hash, name)
-        )
-        user_id = cursor.lastrowid
-        cursor.close()
-    
-    conn.commit()
-    conn.close()
-    
-    # Generate JWT token
-    token = jwt.encode({
-        'user_id': user_id,
-        'email': email,
-        'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=7)
-    }, app.config['SECRET_KEY'], algorithm='HS256')
-    
-    return jsonify({
-        'token': token,
-        'user': {
-            'id': user_id,
+        
+        # Generate JWT token
+        token = jwt.encode({
+            'user_id': user_id,
             'email': email,
-            'name': name
-        }
-    }), 201
+            'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=7)
+        }, app.config['SECRET_KEY'], algorithm='HS256')
+        
+        return jsonify({
+            'token': token,
+            'user': {
+                'id': user_id,
+                'email': email,
+                'name': name
+            }
+        }), 201
+    except Exception as e:
+        if conn:
+            conn.close()
+        return jsonify({'error': f'Registration failed: {str(e)}'}), 500
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
@@ -346,16 +367,25 @@ def login():
     if not email or not password:
         return jsonify({'error': 'Email and password required'}), 400
     
+    # Check database connection
     conn = get_db_connection()
-    if is_postgres():
-        cursor = execute_query(conn, 'SELECT * FROM users WHERE email = %s', (email,))
-        user = cursor.fetchone()
-        cursor.close()
-    else:
-        cursor = execute_query(conn, 'SELECT * FROM users WHERE email = ?', (email,))
-        user = cursor.fetchone()
-        cursor.close()
-    conn.close()
+    if conn is None:
+        return jsonify({'error': 'Database not available'}), 503
+    
+    try:
+        if is_postgres():
+            cursor = execute_query(conn, 'SELECT * FROM users WHERE email = %s', (email,))
+            user = cursor.fetchone()
+            cursor.close()
+        else:
+            cursor = execute_query(conn, 'SELECT * FROM users WHERE email = ?', (email,))
+            user = cursor.fetchone()
+            cursor.close()
+        conn.close()
+    except Exception as e:
+        if conn:
+            conn.close()
+        return jsonify({'error': f'Login failed: {str(e)}'}), 500
     
     if not user:
         return jsonify({'error': 'Invalid email or password'}), 401
