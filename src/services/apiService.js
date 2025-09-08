@@ -1,7 +1,7 @@
 // API Service for ADHD Task Manager - Cache Bust: 2025-09-04-14:02
 // Force cache invalidation with timestamp
 const CACHE_BUST_TIMESTAMP = '2025-09-04-14:02:00';
-const API_BASE_URL = `${window.location.origin}/api`;
+const API_BASE_URL = window.location.origin;
 
 class ApiService {
   constructor() {
