@@ -100,7 +100,7 @@ class ApiService {
   }
 
   async getCurrentUser() {
-    return await this.request('/auth/me');
+    return await this.request('/api/auth/me');
   }
 
   logout() {

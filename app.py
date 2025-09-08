@@ -426,6 +426,40 @@ def login():
         'user': user_dict
     })
 
+@app.route('/api/auth/me', methods=['GET'])
+@token_required
+def get_current_user(current_user_id):
+    """Get current user information"""
+    conn = get_db_connection()
+    if is_postgres():
+        cursor = execute_query(conn, 'SELECT id, email, name FROM users WHERE id = %s', (current_user_id,))
+        user = cursor.fetchone()
+        cursor.close()
+    else:
+        cursor = execute_query(conn, 'SELECT id, email, name FROM users WHERE id = ?', (current_user_id,))
+        user = cursor.fetchone()
+        cursor.close()
+    conn.close()
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Convert to dictionary
+    if is_postgres():
+        user_dict = {
+            'id': user[0],
+            'email': user[1],
+            'name': user[2]
+        }
+    else:
+        user_dict = {
+            'id': user['id'],
+            'email': user['email'],
+            'name': user['name']
+        }
+    
+    return jsonify(user_dict)
+
 @app.route('/api/tracks', methods=['GET'])
 @token_required
 def get_tracks(current_user_id):
