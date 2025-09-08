@@ -669,6 +669,11 @@ def health_check():
         }), 500
 
 
+@app.route('/health', methods=['GET'])
+def simple_health_check():
+    """Simple health check endpoint for Railway"""
+    return jsonify({'status': 'ok', 'message': 'App is running'}), 200
+
 @app.route('/api/test-db', methods=['GET'])
 def test_db():
     """Test database endpoint to debug cursor issues"""
@@ -738,6 +743,10 @@ def serve_static_files(path):
 
 if __name__ == '__main__':
     try:
+        print("=== STARTING APPLICATION ===")
+        print(f"PORT environment variable: {os.environ.get('PORT', 'NOT SET')}")
+        print(f"DATABASE_URL environment variable: {'SET' if os.environ.get('DATABASE_URL') else 'NOT SET'}")
+        
         # Initialize database on startup
         print("Initializing database...")
         init_db()
@@ -746,10 +755,12 @@ if __name__ == '__main__':
         # Get port from environment variable (for cloud deployment) or default to 5000
         port = int(os.environ.get('PORT', 5000))
         print(f"Starting server on port {port}")
+        print("=== APPLICATION READY ===")
         
         # Run the app
         app.run(host='0.0.0.0', port=port, debug=False)
     except Exception as e:
-        print(f"Error starting application: {e}")
+        print(f"ERROR: Failed to start application: {e}")
         import traceback
         traceback.print_exc()
+        exit(1)
