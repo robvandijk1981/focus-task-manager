@@ -13,7 +13,9 @@ app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 
-DATABASE = os.environ.get('DATABASE_URL', 'task_manager.db')
+# Use Railway PostgreSQL URL if available, otherwise use SQLite for local development
+RAILWAY_POSTGRES_URL = 'postgresql://postgres:ZDcFOVhNMCnLhFNKMGUimBFwddGaVnNC@ballast.proxy.rlwy.net:21042/railway'
+DATABASE = os.environ.get('DATABASE_URL', RAILWAY_POSTGRES_URL if os.environ.get('PORT') else 'task_manager.db')
 _db_initialized = False
 
 def get_db_connection():
