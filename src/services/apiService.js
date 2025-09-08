@@ -74,26 +74,26 @@ class ApiService {
 
   // Authentication methods
   async register(userData) {
-    const response = await this.request('/auth/register', {
+    const response = await this.request('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
     
-    if (response.access_token) {
-      this.setToken(response.access_token);
+    if (response.token) {
+      this.setToken(response.token);
     }
     
     return response;
   }
 
   async login(credentials) {
-    const response = await this.request('/auth/login', {
+    const response = await this.request('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
     
-    if (response.access_token) {
-      this.setToken(response.access_token);
+    if (response.token) {
+      this.setToken(response.token);
     }
     
     return response;

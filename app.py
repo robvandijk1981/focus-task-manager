@@ -294,6 +294,69 @@ def token_required(f):
     return decorated
 
 # API Routes
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    """User registration endpoint"""
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    name = data.get('name', '')
+    
+    if not email or not password:
+        return jsonify({'error': 'Email and password required'}), 400
+    
+    # Check if user already exists
+    conn = get_db_connection()
+    if is_postgres():
+        cursor = execute_query(conn, 'SELECT id FROM users WHERE email = %s', (email,))
+        existing_user = cursor.fetchone()
+        cursor.close()
+    else:
+        cursor = execute_query(conn, 'SELECT id FROM users WHERE email = ?', (email,))
+        existing_user = cursor.fetchone()
+        cursor.close()
+    
+    if existing_user:
+        conn.close()
+        return jsonify({'error': 'User already exists'}), 400
+    
+    # Create new user
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    if is_postgres():
+        cursor = execute_query(conn, 
+            'INSERT INTO users (email, password_hash, name) VALUES (%s, %s, %s) RETURNING id',
+            (email, password_hash, name)
+        )
+        user_id = cursor.fetchone()[0]
+        cursor.close()
+    else:
+        cursor = execute_query(conn,
+            'INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)',
+            (email, password_hash, name)
+        )
+        user_id = cursor.lastrowid
+        cursor.close()
+    
+    conn.commit()
+    conn.close()
+    
+    # Generate JWT token
+    token = jwt.encode({
+        'user_id': user_id,
+        'email': email,
+        'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=7)
+    }, app.config['SECRET_KEY'], algorithm='HS256')
+    
+    return jsonify({
+        'token': token,
+        'user': {
+            'id': user_id,
+            'email': email,
+            'name': name
+        }
+    }), 201
+
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     """User login endpoint"""
